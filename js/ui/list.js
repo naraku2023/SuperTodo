@@ -154,9 +154,25 @@ function renderTaskCard(it, isUndone) {
     `;
   }
 
+  let subtasksProgress = '';
+  if (hasSubtasks) {
+    const total = it.subtasks.length;
+    const completed = it.subtasks.filter(s => s.done).length;
+    const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+    subtasksProgress = `
+      <div class="card-subtasks-summary">
+        <span class="subtasks-summary-text">☑ ${completed}/${total} 步骤 (${percent}%)</span>
+        <div class="subtasks-summary-bar">
+          <div class="subtasks-summary-fill" style="width:${percent}%"></div>
+        </div>
+      </div>
+    `;
+  }
+
   let notePreview = '';
   if (it.note) {
-    notePreview = `<div class="card-note-text">${escapeHtml(it.note)}</div>`;
+    const cleanNote = it.note.replace(/\n/g, ' ');
+    notePreview = `<div class="card-note-text">${escapeHtml(cleanNote)}</div>`;
   }
 
   const dragHandle = draggable 
@@ -165,27 +181,27 @@ function renderTaskCard(it, isUndone) {
 
   return `
     <div class="clean-task-card ${it.done ? 'is-done' : ''}" data-task-id="${it.id}">
-      <!-- 左侧独立大热区勾选框，杜绝误触发编辑 -->
+      <!-- 左侧打勾圆圈：点击仅切换整体完成状态 -->
       <div class="task-chk-btn" data-action="toggle-done" data-id="${it.id}" aria-label="标记完成">
         <span class="chk-circle ${it.done ? 'checked' : ''}"></span>
       </div>
 
-      <!-- 中间主体：点击可原地展开/折叠子任务与备注，绝不直接弹出编辑 -->
-      <div class="task-content-body" data-action="toggle-expand" data-id="${it.id}">
+      <!-- 中间主体：点击直接进入清晰的任务详情页，支持一步步打勾完结与查阅完整指南 -->
+      <div class="task-content-body" data-action="open-detail" data-id="${it.id}">
         <div class="task-title-line">
           <span class="task-title-text ${it.done ? 'done' : ''}">${escapeHtml(it.title)}</span>
           ${dueBadge}
         </div>
         ${notePreview}
-        ${renderSubtasksHtml(it)}
+        ${subtasksProgress}
       </div>
 
-      <!-- 右侧操作区：独立明确的编辑按钮 -->
+      <!-- 右侧操作区：拖拽手柄与进入详情箭头 -->
       <div class="task-right-actions">
         ${dragHandle}
-        <button type="button" class="task-edit-btn" data-action="edit-task" data-id="${it.id}" aria-label="编辑事项">
+        <button type="button" class="task-detail-arrow" data-action="open-detail" data-id="${it.id}" aria-label="查看详情">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+            <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41 1.41z"/>
           </svg>
         </button>
       </div>

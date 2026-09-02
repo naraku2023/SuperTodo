@@ -136,6 +136,73 @@ try{const d=JSON.parse(localStorage.getItem('listapp.data.v2')),m=d&&d.colorMode
   </div>
 </div>
 
+<!-- ===== 任务详情页 (Task Detail Sheet) ===== -->
+<div class="modal-mask" id="detailMask" hidden></div>
+<div class="detail-sheet" id="detailSheet" hidden>
+  <div class="detail-head">
+    <button type="button" class="detail-back-btn" id="detailClose" aria-label="返回">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+      </svg>
+      <span>返回</span>
+    </button>
+    <div class="detail-head-actions">
+      <button type="button" class="detail-action-icon danger" id="detailDelete" title="删除事项">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+          <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+        </svg>
+      </button>
+      <button type="button" class="detail-action-icon" id="detailEdit" title="修改属性">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+          <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+  <div class="detail-body" id="detailBody">
+    <!-- 主任务标题与快速完成打勾 -->
+    <div class="detail-title-card">
+      <div class="detail-chk-wrap" id="detailMainChkWrap" title="标记整体完成">
+        <span class="chk-circle" id="detailMainChkCircle"></span>
+      </div>
+      <div class="detail-title-wrap">
+        <input type="text" id="detailTitleInput" class="detail-title-input" placeholder="输入事项标题..." autocomplete="off">
+      </div>
+    </div>
+
+    <!-- 标签胶囊栏 (截止日期、分类等) -->
+    <div class="detail-meta-bar" id="detailMetaBar"></div>
+
+    <!-- 核心：执行步骤清单（可一步步打勾完结） -->
+    <div class="detail-card-section">
+      <div class="detail-sec-header">
+        <span class="detail-sec-title">执行步骤清单 (一步步打勾完结)</span>
+        <span class="detail-sec-badge" id="detailStepsBadge">0/0 步</span>
+      </div>
+      <div class="detail-progress-bar-wrap">
+        <div class="detail-progress-bar" id="detailProgressBar"></div>
+      </div>
+      <div class="detail-subtasks-list" id="detailSubtasksList"></div>
+      <div class="detail-add-step-row">
+        <input type="text" id="detailNewStepInput" class="detail-new-step-input" placeholder="+ 添加下一步骤... (按回车添加)" autocomplete="off">
+        <button type="button" id="detailAddStepBtn" class="detail-add-step-btn">添加</button>
+      </div>
+    </div>
+
+    <!-- 详细说明与执行指南 (展示 AI 生成的深度指导) -->
+    <div class="detail-card-section">
+      <div class="detail-sec-header">
+        <span class="detail-sec-title">详细说明与执行指南</span>
+      </div>
+      <textarea id="detailNoteTextarea" class="detail-note-textarea" placeholder="暂无备注说明，点击输入执行指南或备忘..." rows="4"></textarea>
+    </div>
+  </div>
+  <div class="detail-footer">
+    <span class="detail-create-time" id="detailCreateTime"></span>
+    <button type="button" class="btn-filled" id="detailDoneBtn">完成</button>
+  </div>
+</div>
+
 <!-- ===== 排序弹窗 ===== -->
 <div class="modal-mask" id="sortMask" hidden></div>
 <div class="modal modal-sm" id="sortModal" hidden>
@@ -258,7 +325,7 @@ try{const d=JSON.parse(localStorage.getItem('listapp.data.v2')),m=d&&d.colorMode
         <img class="info-logo-dark" src="app-icon-dark.png" alt="">
       </div>
       <div class="info-name">超级清单</div>
-      <div class="info-ver" id="infoVer">SuperTodo · 版本 1.7.2</div>
+      <div class="info-ver" id="infoVer">SuperTodo · 版本 1.7.3</div>
     </div>
     <div class="info-meta">
       <div class="info-row"><span class="info-k">作者</span><span class="info-v">派大星TuT</span></div>

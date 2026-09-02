@@ -552,4 +552,141 @@ body.home-view .content{padding-top:calc(56px + env(safe-area-inset-top,0px) + 5
 }
 .more-options-body{margin-top:10px;display:flex;flex-direction:column;gap:8px}
 
+/* 卡片上的精简步骤进度条 */
+.card-subtasks-summary{margin-top:6px}
+.subtasks-summary-text{font-size:11.5px;color:var(--primary);font-weight:600}
+.subtasks-summary-bar{height:4px;border-radius:2px;background:var(--line);margin-top:3px;overflow:hidden;width:100%;max-width:200px}
+.subtasks-summary-fill{height:100%;border-radius:2px;background:var(--primary);transition:width .2s}
+.task-detail-arrow{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--text3);cursor:pointer}
+
+/* ===== 任务详情页 (Task Detail Sheet) ===== */
+.detail-sheet{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+  width:100%;max-width:600px;max-height:92vh;
+  background:var(--surface);border-radius:22px 22px 0 0;
+  z-index:95;box-shadow:0 -6px 24px rgba(0,0,0,.15);
+  display:flex;flex-direction:column;
+  animation:sheetSlideUp .22s cubic-bezier(.16,1,.3,1);
+}
+@keyframes sheetSlideUp{from{transform:translate(-50%,100%)}to{transform:translate(-50%,0)}}
+
+.detail-head{
+  padding:14px 18px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.detail-back-btn{
+  display:flex;align-items:center;gap:6px;font-size:14.5px;font-weight:600;
+  color:var(--text);cursor:pointer;
+}
+.detail-head-actions{display:flex;align-items:center;gap:8px}
+.detail-action-icon{
+  width:34px;height:34px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--text2);cursor:pointer;transition:all .15s;
+}
+.detail-action-icon:active{background:var(--surface-alt)}
+.detail-action-icon.danger{color:var(--danger)}
+.detail-action-icon.danger:active{background:rgba(217,48,37,.1)}
+
+.detail-body{
+  flex:1;overflow-y:auto;padding:16px 18px;
+  display:flex;flex-direction:column;gap:16px;
+}
+
+/* 详情大字标题卡片 */
+.detail-title-card{
+  display:flex;align-items:flex-start;gap:12px;
+  padding:12px;background:var(--surface-alt);border-radius:14px;
+}
+.detail-chk-wrap{
+  width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;flex-shrink:0;margin-top:2px;
+}
+.detail-title-wrap{flex:1}
+.detail-title-input{
+  width:100%;font-size:18px;font-weight:700;color:var(--text);
+  background:transparent;border:none;outline:none;line-height:1.4;
+}
+.detail-title-input.done{text-decoration:line-through;color:var(--text3)}
+
+/* 标签栏 */
+.detail-meta-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.detail-tag{
+  font-size:12px;padding:3px 8px;border-radius:6px;
+  background:var(--surface-alt);color:var(--text2);font-weight:500;
+}
+.detail-tag.type-tag{background:var(--primary-soft);color:var(--primary-ink);font-weight:600}
+.detail-tag.due-tag{background:rgba(11,87,208,.1);color:var(--primary)}
+.detail-tag.due-tag.overdue{background:rgba(217,48,37,.1);color:var(--danger)}
+.detail-tag.cost-tag{color:#0f6b3c;font-weight:600}
+
+/* 详情分块卡片 */
+.detail-card-section{
+  background:var(--surface-alt);border-radius:14px;padding:14px;
+  display:flex;flex-direction:column;gap:10px;
+}
+.detail-sec-header{display:flex;align-items:center;justify-content:space-between}
+.detail-sec-title{font-size:13.5px;font-weight:700;color:var(--text)}
+.detail-sec-badge{font-size:11.5px;font-weight:600;color:var(--primary)}
+
+/* 步骤进度条 */
+.detail-progress-bar-wrap{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.detail-progress-bar{height:100%;border-radius:3px;background:var(--primary);transition:width .2s}
+
+/* 步骤清单（一步步打勾完结） */
+.detail-subtasks-list{display:flex;flex-direction:column;gap:6px}
+.detail-subtasks-empty{font-size:13px;color:var(--text3);padding:8px 0;line-height:1.4}
+
+.detail-step-row{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 10px;background:var(--surface);border-radius:10px;
+  transition:background .15s;
+}
+.detail-step-row.is-done{opacity:.6}
+
+.step-chk-label{display:flex;align-items:center;cursor:pointer;margin:0}
+.step-real-chk{display:none}
+.step-chk-box{
+  width:20px;height:20px;border-radius:6px;border:2px solid var(--line-strong);
+  display:flex;align-items:center;justify-content:center;transition:all .15s;
+}
+.step-real-chk:checked + .step-chk-box{background:var(--primary);border-color:var(--primary)}
+.step-real-chk:checked + .step-chk-box::after{
+  content:"";width:4px;height:8px;border:solid #fff;
+  border-width:0 2px 2px 0;transform:rotate(45deg);margin-top:-2px;
+}
+
+.step-title-text{flex:1;font-size:14px;color:var(--text);line-height:1.4;word-break:break-word}
+.step-title-text.done{text-decoration:line-through;color:var(--text3)}
+.step-del-btn{width:24px;height:24px;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:12px;cursor:pointer}
+.step-del-btn:hover{color:var(--danger)}
+
+/* 添加步骤行 */
+.detail-add-step-row{display:flex;gap:8px;margin-top:4px}
+.detail-new-step-input{
+  flex:1;padding:8px 12px;border-radius:10px;border:1px solid var(--line);
+  background:var(--surface);color:var(--text);font-size:13.5px;outline:none;
+}
+.detail-new-step-input:focus{border-color:var(--primary)}
+.detail-add-step-btn{
+  padding:0 14px;border-radius:10px;background:var(--primary);color:#fff;
+  font-size:13px;font-weight:600;cursor:pointer;flex-shrink:0;
+}
+
+/* 说明与指南 Textarea */
+.detail-note-textarea{
+  width:100%;border:1px solid var(--line);border-radius:10px;
+  padding:10px 12px;background:var(--surface);color:var(--text);
+  font-size:13.5px;line-height:1.5;resize:vertical;outline:none;
+}
+.detail-note-textarea:focus{border-color:var(--primary)}
+
+/* 详情页底部 */
+.detail-footer{
+  padding:12px 18px env(safe-area-inset-bottom, 12px);border-top:1px solid var(--line);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.detail-create-time{font-size:11.5px;color:var(--text3)}
+
+
 

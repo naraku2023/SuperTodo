@@ -6,6 +6,7 @@
 import { state, loadState, saveState, on, applyColorMode, toggleColorMode } from './state.js';
 import { renderContent, escapeHtml } from './ui/list.js';
 import { buildStars, openAdd, openEdit, openSettings, openSort, openInfo, pushLayer, syncBack, closeTopLayer } from './ui/modals.js';
+import { openDetail } from './ui/detail.js';
 import { ChatDrawer } from './ui/chat-drawer.js';
 
 const $ = s => document.querySelector(s);
@@ -196,11 +197,11 @@ document.addEventListener('DOMContentLoaded', () => {
     render();
   });
 
-  // 主内容区点击委托（精准划分：勾选、编辑、展开）
+  // 主内容区点击委托（精准划分：打勾、进入详情页）
   $('#content')?.addEventListener('click', (e) => {
     if (e.target.closest('.drag-handle')) return;
 
-    // 1. 勾选完成按钮
+    // 1. 点击左侧圆圈：快速切换主任务完成状态
     const doneBtn = e.target.closest('[data-action="toggle-done"]');
     if (doneBtn) {
       e.stopPropagation();
@@ -208,20 +209,12 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // 2. 只有明确点击编辑按钮才打开编辑弹窗
-    const editBtn = e.target.closest('[data-action="edit-task"]');
-    if (editBtn) {
+    // 2. 点击卡片主体或详情箭头：进入专属任务详情页 (可查阅完整指南并一步步打勾完结)
+    const detailBtn = e.target.closest('[data-action="open-detail"]');
+    if (detailBtn) {
       e.stopPropagation();
-      const it = state.items.find(x => x.id === editBtn.dataset.id);
-      if (it) openEdit(it);
-      return;
-    }
-
-    // 3. 点击卡片主体：如果存在子任务或详情则原地展开/收起，绝不直接弹出编辑
-    const body = e.target.closest('[data-action="toggle-expand"]');
-    if (body) {
-      const taskId = body.dataset.id;
-      window.toggleSubtasksCollapse(taskId);
+      const it = state.items.find(x => x.id === detailBtn.dataset.id);
+      if (it) openDetail(it);
       return;
     }
   });

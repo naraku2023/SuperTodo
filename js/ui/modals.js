@@ -26,6 +26,14 @@ export function syncBack() {
 
 export function closeTopLayer() {
   backSuppress = true;
+  const detailSheet = $('#detailSheet');
+  if (detailSheet && !detailSheet.hidden) {
+    detailSheet.hidden = true;
+    const dm = $('#detailMask');
+    if (dm) dm.hidden = true;
+    backSuppress = false;
+    return true;
+  }
   if (!$('#dlgModal').hidden) { dlgClose(); backSuppress = false; return true; }
   if (!$('#modal').hidden) { hideModal(); backSuppress = false; return true; }
   if (!$('#ctxModal').hidden) { closeCtx(); backSuppress = false; return true; }
