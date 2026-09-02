@@ -5,6 +5,7 @@
 
 import { state } from '../state.js';
 import { agent } from '../ai/agent.js';
+import { pushLayer, syncBack, isBackSuppressed } from './modals.js';
 
 export class ChatDrawer {
   constructor() {
@@ -120,6 +121,7 @@ export class ChatDrawer {
   open(task = null) {
     this.currentTask = task;
     this.isOpen = true;
+    pushLayer();
     this.mask.hidden = false;
     this.drawer.hidden = false;
     requestAnimationFrame(() => {
@@ -146,6 +148,7 @@ export class ChatDrawer {
   }
 
   close() {
+    if (!this.isOpen) return;
     this.isOpen = false;
     this.drawer.classList.remove('open');
     this.mask.classList.remove('open');
@@ -154,6 +157,9 @@ export class ChatDrawer {
       this.mask.hidden = true;
       this.currentTask = null;
     }, 280);
+    if (!isBackSuppressed()) {
+      syncBack();
+    }
   }
 
   renderQuickTags() {

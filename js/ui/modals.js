@@ -15,6 +15,10 @@ const $$ = s => document.querySelectorAll(s);
 let backSuppress = false;
 let codeBack = false;
 
+export function isBackSuppressed() {
+  return backSuppress;
+}
+
 export function onReady(fn) {
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', fn);
@@ -50,6 +54,37 @@ export function syncBack() {
 
 export function closeTopLayer() {
   backSuppress = true;
+
+  // 1. 最顶层：通用模态确认/警告/输入对话框
+  if (!$('#dlgModal').hidden) {
+    dlgClose();
+    backSuppress = false;
+    return true;
+  }
+
+  // 2. 交互抽屉最高层：AI 智能规划/事项专属顾问抽屉（覆盖在详情页之上）
+  if (window.chatDrawerInstance && window.chatDrawerInstance.isOpen) {
+    window.chatDrawerInstance.close();
+    backSuppress = false;
+    return true;
+  }
+
+  // 3. 各功能全屏/半屏弹窗 (属性编辑、设置、排序、关于、长按菜单)
+  if (!$('#modal').hidden) { hideModal(); backSuppress = false; return true; }
+  if (!$('#ctxModal').hidden) { closeCtx(); backSuppress = false; return true; }
+  if (!$('#sortModal').hidden) { closeSort(); backSuppress = false; return true; }
+  if (!$('#setModal').hidden) { closeSettings(); backSuppress = false; return true; }
+  if (!$('#infoModal').hidden) { closeInfo(); backSuppress = false; return true; }
+
+  // 4. 左侧汉堡菜单抽屉
+  if (!$('#drawer').hidden) {
+    $('#drawerMask').hidden = true;
+    $('#drawer').hidden = true;
+    backSuppress = false;
+    return true;
+  }
+
+  // 5. 事项详情页画布 (Detail Sheet，位于 AI 抽屉之下)
   const detailSheet = $('#detailSheet');
   if (detailSheet && !detailSheet.hidden) {
     if (window.closeDetailSheet) {
@@ -62,23 +97,7 @@ export function closeTopLayer() {
     backSuppress = false;
     return true;
   }
-  if (!$('#dlgModal').hidden) { dlgClose(); backSuppress = false; return true; }
-  if (!$('#modal').hidden) { hideModal(); backSuppress = false; return true; }
-  if (!$('#ctxModal').hidden) { closeCtx(); backSuppress = false; return true; }
-  if (!$('#sortModal').hidden) { closeSort(); backSuppress = false; return true; }
-  if (!$('#setModal').hidden) { closeSettings(); backSuppress = false; return true; }
-  if (!$('#infoModal').hidden) { closeInfo(); backSuppress = false; return true; }
-  if (window.chatDrawerInstance && window.chatDrawerInstance.isOpen) {
-    window.chatDrawerInstance.close();
-    backSuppress = false;
-    return true;
-  }
-  if (!$('#drawer').hidden) {
-    $('#drawerMask').hidden = true;
-    $('#drawer').hidden = true;
-    backSuppress = false;
-    return true;
-  }
+
   backSuppress = false;
   return false;
 }

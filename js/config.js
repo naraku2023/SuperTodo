@@ -3,7 +3,7 @@
  */
 
 export const STORAGE_KEY = 'listapp.data.v2';
-export const APP_VERSION = 'v1.7.8';
+export const APP_VERSION = 'v1.7.9';
 export const REPO_API = 'https://api.github.com/repos/PaidaxingTuT/SuperTodo';
 
 export const DEFAULTS = {
