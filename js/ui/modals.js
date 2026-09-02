@@ -15,6 +15,14 @@ const $$ = s => document.querySelectorAll(s);
 let backSuppress = false;
 let codeBack = false;
 
+export function onReady(fn) {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', fn);
+  } else {
+    fn();
+  }
+}
+
 export function pushLayer() {
   history.pushState({ l: 1 }, '');
 }
@@ -114,7 +122,7 @@ export function dlgClose() {
 }
 
 // 绑定对话框确定/取消按钮
-document.addEventListener('DOMContentLoaded', () => {
+onReady( () => {
   $('#dlgOk')?.addEventListener('click', () => {
     const val = $('#dlgInput').value.trim();
     const cb = dlgCallback;
@@ -323,7 +331,7 @@ document.addEventListener('click', (e) => {
 });
 
 // 保存与删除事项
-document.addEventListener('DOMContentLoaded', () => {
+onReady( () => {
   $('#modalSave')?.addEventListener('click', () => {
     const title = $('#fTitle').value.trim();
     if (!title) {
@@ -458,7 +466,7 @@ function renderAiSettings() {
 }
 
 // 绑定设置弹窗内部事件
-document.addEventListener('DOMContentLoaded', () => {
+onReady( () => {
   $('#setClose')?.addEventListener('click', closeSettings);
   $('#setMask')?.addEventListener('click', closeSettings);
 
@@ -598,7 +606,7 @@ export function closeSort() {
   if (!backSuppress) syncBack();
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+onReady( () => {
   $('#sortClose')?.addEventListener('click', closeSort);
   $('#sortMask')?.addEventListener('click', closeSort);
   $('#sortAsc')?.addEventListener('change', (e) => {
@@ -621,7 +629,7 @@ export function closeInfo() {
   if (!backSuppress) syncBack();
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+onReady( () => {
   $('#infoClose')?.addEventListener('click', closeInfo);
   $('#infoMask')?.addEventListener('click', closeInfo);
   $('#infoRepo')?.addEventListener('click', () => {

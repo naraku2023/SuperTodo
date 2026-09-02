@@ -5,7 +5,7 @@
 
 import { state, loadState, saveState, on, applyColorMode, toggleColorMode } from './state.js';
 import { renderContent, escapeHtml } from './ui/list.js';
-import { buildStars, openAdd, openEdit, openSettings, openSort, openInfo, pushLayer, syncBack, closeTopLayer } from './ui/modals.js';
+import { buildStars, openAdd, openEdit, openSettings, openSort, openInfo, pushLayer, syncBack, closeTopLayer, onReady } from './ui/modals.js';
 import { openDetail } from './ui/detail.js';
 import { ChatDrawer } from './ui/chat-drawer.js';
 
@@ -139,7 +139,7 @@ async function init() {
 }
 
 // 绑定全局 DOM 事件
-document.addEventListener('DOMContentLoaded', () => {
+onReady(() => {
   init();
 
   // 汉堡菜单与返回

@@ -3,9 +3,9 @@
  * 提供大字标题、独立步骤清单（支持一步步打勾完结）、进度条联动、执行指南查阅与快速修改
  */
 
-import { state, saveState, emit, pushLayer, syncBack, backSuppress } from '../state.js';
+import { state, saveState, emit } from '../state.js';
 import { calculateProgress, createSubtask } from '../models.js';
-import { openEdit } from './modals.js';
+import { openEdit, pushLayer, syncBack } from './modals.js';
 import { escapeHtml, fmtDue, isOverdue } from './list.js';
 
 let currentTask = null;
@@ -32,7 +32,7 @@ export function closeDetail() {
   if (mask) mask.hidden = true;
   if (sheet) sheet.hidden = true;
   currentTask = null;
-  if (!backSuppress) syncBack();
+  syncBack();
 }
 
 function saveCurrentInputs() {
@@ -152,8 +152,16 @@ function renderDetailSubtasks() {
   listEl.innerHTML = html;
 }
 
+function onReady(fn) {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', fn);
+  } else {
+    fn();
+  }
+}
+
 // 事件委托监听
-document.addEventListener('DOMContentLoaded', () => {
+onReady(() => {
   initDetailEvents();
 });
 
