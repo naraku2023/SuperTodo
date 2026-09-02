@@ -1,5 +1,6 @@
 /**
- * 待办事项列表渲染与拖拽排序模块
+ * 待办事项列表渲染模块
+ * 极简直观设计：告别混乱标签，大点击热区，点击卡片展开详情，仅点击编辑按钮才进入修改
  */
 
 import { state, saveState, emit } from '../state.js';
@@ -14,10 +15,6 @@ export function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-export function money(num) {
-  return Number(num).toLocaleString('zh-CN', { maximumFractionDigits: 2 });
-}
-
 export function isOverdue(dateStr) {
   if (!dateStr) return false;
   const target = new Date(dateStr + 'T23:59:59');
@@ -26,25 +23,25 @@ export function isOverdue(dateStr) {
 
 export function fmtDue(dateStr) {
   if (!dateStr) return '';
-  const [y, m, d] = dateStr.split('-');
   const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  
+  const tomorrow = new Date(now.getTime() + 86400000);
+  const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+
+  if (dateStr === todayStr) return '今天';
+  if (dateStr === tomorrowStr) return '明天';
+
+  const [y, m, d] = dateStr.split('-');
   if (parseInt(y) === now.getFullYear()) {
     return `${parseInt(m)}月${parseInt(d)}日`;
   }
   return `${y}-${m}-${d}`;
 }
 
-export function groupKey(it) {
-  return state.groupBy === 'scene' ? (it.scene || '未分组') : (it.time || '未分组');
-}
-
-export function groupOrder() {
-  const base = state.groupBy === 'scene' ? state.scenes : state.times;
-  const keys = ['未分组'];
-  base.forEach(k => keys.unshift(k));
-  return keys;
-}
-
+/**
+ * 过滤当前分类及搜索结果
+ */
 export function currentItems() {
   let list = state.items.slice();
   if (state.type !== '全部') {
@@ -57,8 +54,13 @@ export function currentItems() {
   return list;
 }
 
+/**
+ * 排序逻辑
+ */
 export function sortItems(list) {
-  if (state.sortKey === '默认' || state.sortKey === '创建时间') return list;
+  if (state.sortKey === '默认' || state.sortKey === '创建时间') {
+    return list.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || b.created - a.created);
+  }
   const val = i => state.sortKey === '预估花费' 
     ? (i.cost || 0) 
     : state.sortKey === '重要程度' 
@@ -68,57 +70,25 @@ export function sortItems(list) {
         : (i.title || '');
 
   const asc = state.sortAsc;
-  list.sort((a, b) => {
+  return list.slice().sort((a, b) => {
     let x = val(a), y = val(b);
     if (x === y) return a.created - b.created;
     if (x === Infinity) return 1;
     if (y === Infinity) return -1;
     return asc ? (x > y ? 1 : -1) : (x < y ? 1 : -1);
   });
-  return list;
-}
-
-export function sectionGroups() {
-  const items = currentItems();
-  const map = {};
-  items.forEach(it => {
-    const k = groupKey(it);
-    (map[k] = map[k] || []).push(it);
-  });
-  const out = [];
-  groupOrder().forEach(k => {
-    if (map[k]) {
-      out.push({
-        key: k,
-        items: map[k],
-        done: map[k].filter(i => i.done).length,
-        active: map[k].filter(i => !i.done).length
-      });
-    }
-  });
-  return out;
 }
 
 /**
- * 渲染主内容区域
+ * 渲染主待办列表（直观、极简、清晰）
  */
 export function renderContent() {
   const wrap = document.querySelector('#content');
   const empty = document.querySelector('#emptyState');
   if (!wrap) return;
 
-  if (state.view.name === 'home') {
-    renderHome(wrap, empty);
-  } else {
-    renderList(wrap, empty);
-  }
-}
-
-function renderHome(wrap, empty) {
-  const groups = sectionGroups();
-  const totalCount = currentItems().length;
-
-  if (!totalCount) {
+  const allItems = currentItems();
+  if (!allItems.length) {
     if (empty) empty.hidden = false;
     renderEmptyText();
     wrap.innerHTML = '';
@@ -126,120 +96,111 @@ function renderHome(wrap, empty) {
   }
   if (empty) empty.hidden = true;
 
-  let html = '';
-  groups.forEach(g => {
-    const undone = g.items
-      .filter(i => !i.done)
-      .slice()
-      .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity) || a.created - b.created);
-    const preview = undone.slice(0, 4);
+  const undoneItems = sortItems(allItems.filter(i => !i.done));
+  const doneItems = allItems.filter(i => i.done);
 
+  let html = '';
+
+  // 1. 未完成事项列表
+  if (undoneItems.length > 0) {
     html += `
-      <div class="section">
-        <div class="section-head" data-open="${escapeHtml(g.key)}">
-          <span class="sec-caret" style="background:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%235f6368%22><path d=%22M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z/%22/></svg>') center/contain no-repeat"></span>
-          <span class="sec-title">${escapeHtml(g.key)}</span>
-          <span class="sec-count">${g.items.length}</span>
-          <span class="sec-right">${undone.length ? '未完成 ' + undone.length : '全完成'}</span>
+      <div class="task-group active-group">
+        <div class="group-header">
+          <span class="group-title">待办事项</span>
+          <span class="group-count">${undoneItems.length}</span>
         </div>
-        <div class="section-card" data-open="${escapeHtml(g.key)}">
-          ${preview.map(it => secItemHTML(it)).join('')}
-          <div class="sec-more" data-open2="${escapeHtml(g.key)}">
-            查看全部 ${g.items.length} 项 
-            <span class="ci-arrow" style="background:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%235f6368%22><path d=%22M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z/%22/></svg>') center/contain no-repeat;width:14px;height:14px"></span>
-          </div>
+        <div class="task-list" id="undoneList">
+          ${undoneItems.map(it => renderTaskCard(it, true)).join('')}
         </div>
       </div>
     `;
-  });
+  }
+
+  // 2. 已完成事项列表（折叠式展示，不抢占视觉）
+  if (doneItems.length > 0) {
+    html += `
+      <div class="task-group completed-group">
+        <details class="completed-details" ${undoneItems.length === 0 ? 'open' : ''}>
+          <summary class="completed-summary">
+            <span class="cs-title">已完成</span>
+            <span class="cs-count">${doneItems.length}</span>
+          </summary>
+          <div class="task-list done-list">
+            ${doneItems.map(it => renderTaskCard(it, false)).join('')}
+          </div>
+        </details>
+      </div>
+    `;
+  }
 
   wrap.innerHTML = html;
+  initSortable(document.querySelector('#undoneList'));
 }
 
-function secItemHTML(it) {
+/**
+ * 单个事项卡片渲染
+ */
+function renderTaskCard(it, isUndone) {
+  const hasSubtasks = it.subtasks && it.subtasks.length > 0;
+  const overdue = isOverdue(it.due) && !it.done;
+  const draggable = state.sortKey === '默认' && isUndone;
+
+  let dueBadge = '';
+  if (it.due) {
+    dueBadge = `
+      <span class="card-due-badge ${overdue ? 'overdue' : ''}">
+        <span class="due-icon">📅</span> ${fmtDue(it.due)}
+      </span>
+    `;
+  }
+
+  let notePreview = '';
+  if (it.note) {
+    notePreview = `<div class="card-note-text">${escapeHtml(it.note)}</div>`;
+  }
+
+  const dragHandle = draggable 
+    ? `<span class="drag-handle" data-drag="${it.id}" title="拖拽排序"></span>` 
+    : '';
+
   return `
-    <div class="sec-item" data-item="${it.id}">
-      <span class="card-check ${it.done ? 'done' : ''}" data-done="${it.id}"></span>
-      <div class="card-body">
-        <div class="card-title ${it.done ? 'done' : ''}">${escapeHtml(it.title)}</div>
-        <div class="card-meta">${secMeta(it)}</div>
+    <div class="clean-task-card ${it.done ? 'is-done' : ''}" data-task-id="${it.id}">
+      <!-- 左侧独立大热区勾选框，杜绝误触发编辑 -->
+      <div class="task-chk-btn" data-action="toggle-done" data-id="${it.id}" aria-label="标记完成">
+        <span class="chk-circle ${it.done ? 'checked' : ''}"></span>
+      </div>
+
+      <!-- 中间主体：点击可原地展开/折叠子任务与备注，绝不直接弹出编辑 -->
+      <div class="task-content-body" data-action="toggle-expand" data-id="${it.id}">
+        <div class="task-title-line">
+          <span class="task-title-text ${it.done ? 'done' : ''}">${escapeHtml(it.title)}</span>
+          ${dueBadge}
+        </div>
+        ${notePreview}
         ${renderSubtasksHtml(it)}
+      </div>
+
+      <!-- 右侧操作区：独立明确的编辑按钮 -->
+      <div class="task-right-actions">
+        ${dragHandle}
+        <button type="button" class="task-edit-btn" data-action="edit-task" data-id="${it.id}" aria-label="编辑事项">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+          </svg>
+        </button>
       </div>
     </div>
   `;
 }
 
-function secMeta(it) {
-  let h = '';
-  if (it.cost) h += `<span class="cost">¥${money(it.cost)}</span>`;
-  if (it.star) h += `<span class="star">${'★'.repeat(it.star)}</span>`;
-  if (it.due) h += `<span class="tag ${isOverdue(it.due) && !it.done ? 'over' : ''}">${fmtDue(it.due)}</span>`;
-  if (state.groupBy !== 'scene' && it.scene) h += `<span class="tag">${escapeHtml(it.scene)}</span>`;
-  if (state.groupBy !== 'time' && it.time) h += `<span class="tag">${escapeHtml(it.time)}</span>`;
-  return h;
-}
-
-function renderList(wrap, empty) {
-  const g = sectionGroups().find(x => x.key === state.view.group);
-  if (!g || !g.items.length) {
-    if (empty) empty.hidden = false;
-    renderEmptyText();
-    wrap.innerHTML = '';
-    return;
-  }
-  if (empty) empty.hidden = true;
-
-  const undone = g.items.filter(i => !i.done);
-  let list;
-  if (state.sortKey === '默认') {
-    list = undone.slice()
-      .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity) || a.created - b.created)
-      .concat(g.items.filter(i => i.done));
-  } else {
-    list = sortItems(undone.concat(g.items.filter(i => i.done)));
-  }
-
-  const draggable = state.sortKey === '默认';
-  let html = '';
-  list.forEach(it => {
-    const drag = draggable && !it.done ? `<span class="drag-handle" data-drag="${it.id}"></span>` : '';
-    html += `
-      <div class="item-row" data-item="${it.id}">
-        <span class="card-check ${it.done ? 'done' : ''}" data-done="${it.id}"></span>
-        <div class="card-body">
-          <div class="card-title ${it.done ? 'done' : ''}">${escapeHtml(it.title)}</div>
-          <div class="card-meta">${fullMeta(it)}</div>
-          ${renderSubtasksHtml(it)}
-        </div>
-        ${drag}
-        <span class="chev" style="background:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%235f6368%22><path d=%22M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z/%22/></svg>') center/contain no-repeat"></span>
-      </div>
-    `;
-  });
-
-  wrap.innerHTML = html;
-  initSortable(wrap);
-}
-
-function fullMeta(it) {
-  let h = '';
-  if (it.type) h += `<span class="tag type-blue">${escapeHtml(it.type)}</span>`;
-  if (it.scene && state.groupBy !== 'scene') h += `<span class="tag">${escapeHtml(it.scene)}</span>`;
-  if (it.time && state.groupBy !== 'time') h += `<span class="tag">${escapeHtml(it.time)}</span>`;
-  if (it.cost) h += `<span class="cost">¥${money(it.cost)}</span>`;
-  if (it.star) h += `<span class="star">${'★'.repeat(it.star)}</span>`;
-  if (it.due) h += `<span class="tag ${isOverdue(it.due) && !it.done ? 'over' : ''}">${fmtDue(it.due)}</span>`;
-  return h;
-}
-
 function renderEmptyText() {
   const t = document.querySelector('#emptyTitle');
   const s = document.querySelector('#emptySub');
-  if (t) t.textContent = state.search ? '无搜索结果' : (state.view.name === 'home' ? '暂无事项' : '该分组暂无事项');
-  if (s) s.textContent = state.search ? '换个关键词试试' : '点击右下角的 + 或让 AI 帮您规划';
+  if (t) t.textContent = state.search ? '无搜索结果' : '暂无待办事项';
+  if (s) s.textContent = state.search ? '换个关键词试试' : '点击右下角 + 添加，或让 AI 帮您规划';
 }
 
-// 绑定全局子任务展开与勾选切换函数
+// 绑定全局子任务展开/收起切换
 window.toggleSubtasksCollapse = function(taskId) {
   const listEl = document.querySelector(`#subList_${taskId}`);
   const btnEl = document.querySelector(`#subChevron_${taskId}`);
@@ -264,7 +225,7 @@ document.addEventListener('change', (e) => {
 
 let sortableInstance = null;
 function initSortable(wrap) {
-  if (typeof Sortable === 'undefined') return;
+  if (!wrap || typeof Sortable === 'undefined') return;
   if (sortableInstance) {
     sortableInstance.destroy();
     sortableInstance = null;
@@ -277,9 +238,9 @@ function initSortable(wrap) {
     ghostClass: 'sortable-ghost',
     dragClass: 'sortable-drag',
     onEnd: () => {
-      const rows = Array.from(wrap.querySelectorAll('.item-row'));
+      const rows = Array.from(wrap.querySelectorAll('.clean-task-card'));
       rows.forEach((r, idx) => {
-        const id = r.getAttribute('data-item');
+        const id = r.getAttribute('data-task-id');
         const it = state.items.find(x => x.id === id);
         if (it) it.order = idx;
       });

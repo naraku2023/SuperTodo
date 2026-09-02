@@ -159,6 +159,10 @@ export function openAdd(pref) {
   $('#fCost').value = (pref && pref.cost != null) ? pref.cost : '';
   $('#fDue').value = (pref && pref.due) || '';
 
+  // 默认折叠更多选项，保持创建极简
+  const moreDetails = $('#moreOptionsDetails');
+  if (moreDetails) moreDetails.open = false;
+
   $('#fTypeSeg').innerHTML = segHTML('type');
   $('#fSceneSeg').innerHTML = segHTML('scene');
   $('#fTimeSeg').innerHTML = segHTML('time');
@@ -203,6 +207,12 @@ export function openEdit(it) {
   $('#fNote').value = it.note || '';
   $('#fCost').value = (it.cost !== null && it.cost !== undefined) ? it.cost : '';
   $('#fDue').value = it.due || '';
+
+  // 如果原本就有高级字段，才展开更多选项
+  const moreDetails = $('#moreOptionsDetails');
+  if (moreDetails) {
+    moreDetails.open = Boolean(it.cost || it.star || it.scene || it.time);
+  }
 
   $('#fTypeSeg').innerHTML = segHTML('type');
   $('#fSceneSeg').innerHTML = segHTML('scene');
@@ -257,6 +267,25 @@ export function hideModal() {
 
 // 绑定事项弹窗内的快捷分类与子任务
 document.addEventListener('click', (e) => {
+  // 快捷日期选择处理
+  const qbtn = e.target.closest('.qdue-btn');
+  if (qbtn) {
+    const dueInput = document.querySelector('#fDue');
+    if (dueInput) {
+      if (qbtn.dataset.clear) {
+        dueInput.value = '';
+      } else {
+        const days = parseInt(qbtn.dataset.days || '0', 10);
+        const d = new Date(Date.now() + days * 86400000);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        dueInput.value = `${y}-${m}-${day}`;
+      }
+    }
+    return;
+  }
+
   const chip = e.target.closest('.seg-chip:not(.mini)');
   if (chip) {
     const p = chip.parentElement;

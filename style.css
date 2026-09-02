@@ -464,3 +464,92 @@ body.home-view .content{padding-top:calc(56px + env(safe-area-inset-top,0px) + 5
 .chat-send-btn:active{transform:scale(.92)}
 .chat-send-btn:disabled{opacity:.4;pointer-events:none}
 
+/* ===== 极简现代化待办卡片 (Clean Task Card) ===== */
+.task-group{margin-bottom:18px}
+.group-header{display:flex;align-items:center;gap:8px;padding:8px 6px;margin-bottom:4px}
+.group-title{font-size:14.5px;font-weight:700;color:var(--text)}
+.group-count{font-size:11.5px;font-weight:600;padding:1px 7px;border-radius:10px;background:var(--surface-alt);color:var(--text3)}
+
+.task-list{display:flex;flex-direction:column;gap:8px}
+
+.clean-task-card{
+  display:flex;align-items:flex-start;gap:10px;
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:14px;padding:12px 14px;
+  box-shadow:0 1px 4px rgba(0,0,0,.03);
+  transition:all .18s ease;
+  position:relative;
+}
+.clean-task-card:active{background:var(--surface-hover)}
+.clean-task-card.is-done{opacity:.65;background:var(--surface-alt)}
+
+/* 独立大点击热区完成勾选框 */
+.task-chk-btn{
+  width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;cursor:pointer;margin-top:-2px;margin-left:-4px;
+}
+.chk-circle{
+  width:22px;height:22px;border:2px solid var(--line-strong);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .18s cubic-bezier(.16,1,.3,1);
+}
+.chk-circle.checked{background:var(--primary);border-color:var(--primary)}
+.chk-circle.checked::after{
+  content:"";width:5px;height:9px;border:solid #fff;
+  border-width:0 2px 2px 0;transform:rotate(45deg);margin-top:-2px;
+}
+
+/* 卡片文本主体 (点击可展开子任务，不弹编辑) */
+.task-content-body{flex:1;min-width:0;cursor:pointer}
+.task-title-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.task-title-text{font-size:15px;font-weight:600;color:var(--text);word-break:break-word;line-height:1.4}
+.task-title-text.done{text-decoration:line-through;color:var(--text3)}
+
+.card-due-badge{
+  font-size:11.5px;padding:2px 7px;border-radius:6px;
+  background:var(--surface-alt);color:var(--text2);
+  display:inline-flex;align-items:center;gap:3px;font-weight:500;
+}
+.card-due-badge.overdue{background:rgba(217,48,37,.1);color:var(--danger)}
+
+.card-note-text{font-size:13px;color:var(--text3);margin-top:4px;line-height:1.4;word-break:break-word}
+
+/* 右侧操作区：独立编辑按钮与拖拽 */
+.task-right-actions{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.task-edit-btn{
+  width:32px;height:32px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--text3);cursor:pointer;transition:all .15s;
+}
+.task-edit-btn:active{color:var(--primary);background:var(--primary-soft)}
+
+/* 已完成折叠区 */
+.completed-details{margin-top:10px}
+.completed-summary{
+  font-size:13.5px;font-weight:600;color:var(--text3);
+  padding:8px 6px;cursor:pointer;display:flex;align-items:center;gap:6px;
+}
+.cs-count{font-size:11px;padding:1px 6px;border-radius:8px;background:var(--surface-alt);color:var(--text3)}
+
+/* 快捷日期行 */
+.quick-due-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.qdue-btn{
+  padding:5px 10px;border-radius:8px;border:1px solid var(--line);
+  background:var(--surface-alt);color:var(--text2);font-size:12px;
+  cursor:pointer;transition:all .15s;
+}
+.qdue-btn:active{background:var(--primary-soft);color:var(--primary-ink);border-color:var(--primary)}
+.qdue-input{padding:4px 8px;border-radius:8px;border:1px solid var(--line);background:var(--surface-alt);color:var(--text);font-size:12px;outline:none}
+
+/* 更多选项折叠详情 (Details) */
+.more-options-details{
+  margin-top:14px;border:1px dashed var(--line);border-radius:12px;
+  padding:8px 12px;background:var(--surface-alt);
+}
+.more-options-summary{
+  font-size:13px;color:var(--text2);font-weight:600;
+  cursor:pointer;padding:4px 0;user-select:none;
+}
+.more-options-body{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+
+

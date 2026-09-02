@@ -45,11 +45,66 @@ export function emit(event, data) {
 /**
  * 从 LocalStorage 加载数据并平滑迁移旧版本数据
  */
-export function loadState() {
+// IndexedDB 双轨持久化支持（确保覆盖安装、版本升级或系统清理时数据 100% 留存）
+const DB_NAME = 'SuperTodo_Persistent_DB';
+const STORE_NAME = 'app_data';
+
+function openIDB() {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined' || !window.indexedDB) return resolve(null);
+    const req = window.indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+    };
+    req.onsuccess = (e) => resolve(e.target.result);
+    req.onerror = () => resolve(null);
+  });
+}
+
+async function idbSave(key, val) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    const data = JSON.parse(raw);
+    const db = await openIDB();
+    if (!db) return;
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    tx.objectStore(STORE_NAME).put(val, key);
+  } catch (e) {}
+}
+
+async function idbLoad(key) {
+  try {
+    const db = await openIDB();
+    if (!db) return null;
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const req = tx.objectStore(STORE_NAME).get(key);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * 从 LocalStorage 或 IndexedDB 加载数据并平滑迁移
+ */
+export async function loadState() {
+  try {
+    let data = null;
+    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(STORAGE_KEY + '_backup');
+    if (raw) {
+      try { data = JSON.parse(raw); } catch (e) {}
+    }
+
+    // 若 LocalStorage 为空（如覆盖安装后初次读取），尝试从 IndexedDB 继承恢复
+    if (!data) {
+      data = await idbLoad('backup_payload');
+    }
+
+    if (!data) return;
 
     if (Array.isArray(data.items)) {
       state.items = data.items.map(it => createTask(it));
@@ -82,13 +137,16 @@ export function loadState() {
     if (Array.isArray(data.chatHistory)) {
       state.chatHistory = data.chatHistory.slice(-30);
     }
+
+    // 确保 LocalStorage 立即保持最新镜像
+    saveState();
   } catch (err) {
-    console.error('Failed to load state from localStorage:', err);
+    console.error('Failed to load state:', err);
   }
 }
 
 /**
- * 持久化保存到 LocalStorage
+ * 双轨持久化保存 (LocalStorage + IndexedDB)
  */
 export function saveState() {
   try {
@@ -102,10 +160,13 @@ export function saveState() {
       ai: state.ai,
       chatHistory: state.chatHistory.slice(-30)
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    const json = JSON.stringify(payload);
+    localStorage.setItem(STORAGE_KEY, json);
+    localStorage.setItem(STORAGE_KEY + '_backup', json);
+    idbSave('backup_payload', payload);
     emit('saved', state);
   } catch (err) {
-    console.error('Failed to save state to localStorage:', err);
+    console.error('Failed to save state:', err);
   }
 }
 

@@ -53,8 +53,8 @@ function updateAppTitle() {
     if (t) t.textContent = state.type;
     if (back) back.hidden = true;
     if (ham) ham.hidden = false;
-    if (sortBtn) sortBtn.hidden = true;
-    if (gb) gb.hidden = false;
+    if (sortBtn) sortBtn.hidden = false;
+    if (gb) gb.hidden = true; // 隐藏旧版混乱的按场景/按时间切分条
   } else {
     if (t) t.textContent = state.view.group || '分组详情';
     if (back) back.hidden = false;
@@ -105,8 +105,8 @@ function closeDrawer() {
 }
 
 // 初始化主入口
-function init() {
-  loadState();
+async function init() {
+  await loadState();
   applyColorMode();
   buildStars();
 
@@ -196,30 +196,33 @@ document.addEventListener('DOMContentLoaded', () => {
     render();
   });
 
-  // 主内容区点击委托（打勾、进入分组、编辑详情）
+  // 主内容区点击委托（精准划分：勾选、编辑、展开）
   $('#content')?.addEventListener('click', (e) => {
-    if (e.target.closest('.drag-handle') || e.target.closest('.task-subtasks-box')) return;
-    const done = e.target.closest('[data-done]');
-    if (done) {
+    if (e.target.closest('.drag-handle')) return;
+
+    // 1. 勾选完成按钮
+    const doneBtn = e.target.closest('[data-action="toggle-done"]');
+    if (doneBtn) {
       e.stopPropagation();
-      toggleDone(done.dataset.done);
+      toggleDone(doneBtn.dataset.id);
       return;
     }
-    const item = e.target.closest('[data-item]');
-    if (item) {
+
+    // 2. 只有明确点击编辑按钮才打开编辑弹窗
+    const editBtn = e.target.closest('[data-action="edit-task"]');
+    if (editBtn) {
       e.stopPropagation();
-      const it = state.items.find(x => x.id === item.dataset.item);
+      const it = state.items.find(x => x.id === editBtn.dataset.id);
       if (it) openEdit(it);
       return;
     }
-    const open = e.target.closest('[data-open]');
-    if (open) {
-      enterGroup(open.dataset.open);
+
+    // 3. 点击卡片主体：如果存在子任务或详情则原地展开/收起，绝不直接弹出编辑
+    const body = e.target.closest('[data-action="toggle-expand"]');
+    if (body) {
+      const taskId = body.dataset.id;
+      window.toggleSubtasksCollapse(taskId);
       return;
-    }
-    const open2 = e.target.closest('[data-open2]');
-    if (open2) {
-      enterGroup(open2.dataset.open2);
     }
   });
 

@@ -78,41 +78,55 @@ try{const d=JSON.parse(localStorage.getItem('listapp.data.v2')),m=d&&d.colorMode
   </div>
   <div class="modal-body" id="modalBody">
     <label class="fld">
-      <input type="text" id="fTitle" placeholder="事项标题" autocomplete="off">
+      <input type="text" id="fTitle" placeholder="输入你想做的事..." autocomplete="off">
     </label>
     <div class="ai-sugbox" id="aiSuggestBox" hidden></div>
+
+    <div class="fld">
+      <label class="fld-label">截止日期</label>
+      <div class="quick-due-row">
+        <button type="button" class="qdue-btn" data-days="0">今天</button>
+        <button type="button" class="qdue-btn" data-days="1">明天</button>
+        <button type="button" class="qdue-btn" data-days="7">下周</button>
+        <button type="button" class="qdue-btn" data-clear="1">清除</button>
+        <input type="date" id="fDue" class="qdue-input">
+      </div>
+    </div>
+
+    <div id="modalSubtasksWrap"></div>
+
     <label class="fld">
       <input type="text" id="fNote" placeholder="备注（可选）" autocomplete="off">
     </label>
 
-    <div class="fld">
-      <label class="fld-label">类型</label>
-      <div class="segbg" id="fTypeSeg"></div>
-    </div>
-    <div class="fld">
-      <label class="fld-label">场景</label>
-      <div class="segbg" id="fSceneSeg"></div>
-    </div>
-    <div class="fld">
-      <label class="fld-label">时间</label>
-      <div class="segbg" id="fTimeSeg"></div>
-    </div>
-
-    <div class="fld fif">
-      <div class="fld-in">
-        <label class="fld-label">预估花费 ¥</label>
-        <input type="number" id="fCost" placeholder="0" min="0" step="any" inputmode="decimal">
+    <!-- 高级扩展选项（默认完全折叠隐藏，不干扰极简体验） -->
+    <details class="more-options-details" id="moreOptionsDetails">
+      <summary class="more-options-summary">更多选项（分类、场景、花费...）</summary>
+      <div class="more-options-body">
+        <div class="fld">
+          <label class="fld-label">类型</label>
+          <div class="segbg" id="fTypeSeg"></div>
+        </div>
+        <div class="fld">
+          <label class="fld-label">场景</label>
+          <div class="segbg" id="fSceneSeg"></div>
+        </div>
+        <div class="fld">
+          <label class="fld-label">时间维度</label>
+          <div class="segbg" id="fTimeSeg"></div>
+        </div>
+        <div class="fld fif">
+          <div class="fld-in">
+            <label class="fld-label">预估花费 ¥</label>
+            <input type="number" id="fCost" placeholder="0" min="0" step="any" inputmode="decimal">
+          </div>
+          <div class="fld-in">
+            <label class="fld-label">重要程度</label>
+            <div class="stars" id="fStars"></div>
+          </div>
+        </div>
       </div>
-      <div class="fld-in">
-        <label class="fld-label">截止日期</label>
-        <input type="date" id="fDue">
-      </div>
-    </div>
-
-    <div class="fld">
-      <label class="fld-label">重要程度</label>
-      <div class="stars" id="fStars"></div>
-    </div>
+    </details>
   </div>
   <div class="modal-foot">
     <button class="btn-text danger" id="modalDelete" hidden>删除</button>
@@ -244,7 +258,7 @@ try{const d=JSON.parse(localStorage.getItem('listapp.data.v2')),m=d&&d.colorMode
         <img class="info-logo-dark" src="app-icon-dark.png" alt="">
       </div>
       <div class="info-name">超级清单</div>
-      <div class="info-ver" id="infoVer">SuperTodo · 版本 1.7.1</div>
+      <div class="info-ver" id="infoVer">SuperTodo · 版本 1.7.2</div>
     </div>
     <div class="info-meta">
       <div class="info-row"><span class="info-k">作者</span><span class="info-v">派大星TuT</span></div>
