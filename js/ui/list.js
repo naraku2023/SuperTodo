@@ -4,6 +4,7 @@
  */
 
 import { state, saveState, emit } from '../state.js';
+import { groupSubtasksByStage } from '../models.js';
 import { renderSubtasksHtml, toggleSubtask } from './subtasks.js';
 
 export function escapeHtml(str) {
@@ -154,14 +155,31 @@ function renderTaskCard(it, isUndone) {
     `;
   }
 
+  // 分类定制徽标
+  let categoryBadge = '';
+  const type = it.type || '待办';
+  if (type === '购物' && it.cost != null && it.cost > 0) {
+    categoryBadge = `<span class="card-tmpl-badge badge-shopping">🛒 ¥${it.cost}</span>`;
+  } else if (type === '愿望' && it.star) {
+    categoryBadge = `<span class="card-tmpl-badge badge-wish">🌟 ${'★'.repeat(it.star)}</span>`;
+  } else if (type === '旅游' && it.scene) {
+    categoryBadge = `<span class="card-tmpl-badge badge-travel">✈️ ${escapeHtml(it.scene)}</span>`;
+  }
+
   let subtasksProgress = '';
   if (hasSubtasks) {
     const total = it.subtasks.length;
     const completed = it.subtasks.filter(s => s.done).length;
     const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+    
+    // 检查是否包含阶段划分
+    const stageGroups = groupSubtasksByStage(it.subtasks);
+    const stageCount = stageGroups.filter(g => Boolean(g.stage)).length;
+    const stagePrefix = stageCount > 1 ? `🎯 ${stageCount}个阶段 · ` : '';
+
     subtasksProgress = `
       <div class="card-subtasks-summary">
-        <span class="subtasks-summary-text">☑ ${completed}/${total} 步骤 (${percent}%)</span>
+        <span class="subtasks-summary-text">${stagePrefix}☑ ${completed}/${total} 步 (${percent}%)</span>
         <div class="subtasks-summary-bar">
           <div class="subtasks-summary-fill" style="width:${percent}%"></div>
         </div>
@@ -190,6 +208,7 @@ function renderTaskCard(it, isUndone) {
       <div class="task-content-body" data-action="open-detail" data-id="${it.id}">
         <div class="task-title-line">
           <span class="task-title-text ${it.done ? 'done' : ''}">${escapeHtml(it.title)}</span>
+          ${categoryBadge}
           ${dueBadge}
         </div>
         ${notePreview}

@@ -10,13 +10,37 @@ export function generateId(prefix = 'item') {
 }
 
 /**
- * 创建子任务对象
+ * 创建子任务对象（支持阶段性分组 stage）
  */
-export function createSubtask(title = '', done = false) {
+export function createSubtask(data = '', done = false, stage = '') {
+  let title = '';
+  let st = stage;
+  let isDone = done;
+  let id = null;
+
+  if (typeof data === 'object' && data !== null) {
+    id = data.id;
+    title = String(data.title || '').trim();
+    isDone = Boolean(data.done);
+    st = data.stage || stage || '';
+  } else {
+    title = String(data || '').trim();
+  }
+
+  // 自动从诸如 "【阶段一：考纲梳理】精读大纲" 中提取 stage 标签
+  if (!st) {
+    const m = title.match(/^[【\[](阶段[^】\]]+)[】\]]\s*(.*)$/);
+    if (m) {
+      st = m[1];
+      title = m[2] ? m[2].trim() : title;
+    }
+  }
+
   return {
-    id: generateId('sub'),
-    title: String(title).trim(),
-    done: Boolean(done)
+    id: id || generateId('sub'),
+    title,
+    stage: String(st || '').trim(),
+    done: isDone
   };
 }
 
@@ -40,7 +64,7 @@ export function createTask(data = {}) {
     created: data.created || now,
     // 子任务列表
     subtasks: Array.isArray(data.subtasks) 
-      ? data.subtasks.map(s => typeof s === 'string' ? createSubtask(s) : { id: s.id || generateId('sub'), title: s.title || '', done: Boolean(s.done) })
+      ? data.subtasks.map(s => createSubtask(s))
       : []
   };
 }
@@ -59,14 +83,49 @@ export function createChatMessage(role, content, actionPayload = null) {
 }
 
 /**
- * 计算子任务完成进度
+ * 计算任务或步骤完成进度
  */
 export function calculateProgress(subtasks = []) {
   if (!Array.isArray(subtasks) || subtasks.length === 0) {
     return { total: 0, completed: 0, percent: 0 };
   }
-  const completed = subtasks.filter(s => s.done).length;
   const total = subtasks.length;
-  const percent = Math.round((completed / total) * 100);
+  const completed = subtasks.filter(s => s.done).length;
+  const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
   return { total, completed, percent };
+}
+
+/**
+ * 将子任务按阶段 (Stage) 智能归类分组
+ */
+export function groupSubtasksByStage(subtasks = []) {
+  if (!Array.isArray(subtasks) || subtasks.length === 0) return [];
+  
+  const hasStage = subtasks.some(s => Boolean(s.stage));
+  if (!hasStage) {
+    return [{
+      stage: '',
+      items: subtasks,
+      ...calculateProgress(subtasks)
+    }];
+  }
+
+  const map = new Map();
+  subtasks.forEach(s => {
+    const stKey = s.stage || '其他待办步骤';
+    if (!map.has(stKey)) {
+      map.set(stKey, []);
+    }
+    map.get(stKey).push(s);
+  });
+
+  const groups = [];
+  map.forEach((items, stage) => {
+    groups.push({
+      stage,
+      items,
+      ...calculateProgress(items)
+    });
+  });
+  return groups;
 }

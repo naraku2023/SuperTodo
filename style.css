@@ -673,13 +673,89 @@ body.home-view .content{padding-top:calc(56px + env(safe-area-inset-top,0px) + 5
   font-size:13px;font-weight:600;cursor:pointer;flex-shrink:0;
 }
 
-/* 说明与指南 Textarea */
-.detail-note-textarea{
-  width:100%;border:1px solid var(--line);border-radius:10px;
-  padding:10px 12px;background:var(--surface);color:var(--text);
-  font-size:13.5px;line-height:1.5;resize:vertical;outline:none;
+/* 阶段性分层显示卡片 (Stage Blocks) */
+.detail-stage-block{
+  background:var(--surface);border-radius:12px;border:1px solid var(--line);
+  padding:10px 12px;display:flex;flex-direction:column;gap:8px;
 }
-.detail-note-textarea:focus{border-color:var(--primary)}
+.detail-stage-block.stage-all-done{border-color:rgba(15,107,60,.3);background:rgba(15,107,60,.03)}
+.stage-header{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.stage-icon{font-size:13px}
+.stage-name{font-size:13.5px;font-weight:700;color:var(--text);flex:1}
+.stage-badge{font-size:11.5px;font-weight:600;color:var(--primary);background:var(--primary-soft);padding:1px 6px;border-radius:6px}
+.stage-bar-wrap{width:100%;height:3px;background:var(--line);border-radius:2px;overflow:hidden;margin-top:2px}
+.stage-bar-fill{height:100%;background:var(--primary);border-radius:2px;transition:width .2s}
+.stage-step-items{display:flex;flex-direction:column;gap:5px;margin-top:4px}
+.stage-step-items .detail-step-row{background:var(--surface-alt);border:1px solid var(--line)}
+
+/* 卡片分类定制专属徽标 (Category Badges) */
+.card-tmpl-badge{
+  font-size:11px;font-weight:600;padding:2px 7px;border-radius:6px;flex-shrink:0;
+}
+.badge-shopping{background:rgba(24,128,56,.12);color:#188038}
+.badge-wish{background:rgba(249,171,0,.15);color:#b26a00}
+.badge-travel{background:rgba(0,115,114,.12);color:#007372}
+.badge-plan{background:rgba(124,45,146,.12);color:#7c2d92}
+
+.detail-tag.plan-tag{background:rgba(124,45,146,.12);color:#7c2d92;font-weight:600}
+.detail-tag.travel-tag{background:rgba(0,115,114,.12);color:#007372;font-weight:600}
+.detail-tag.wish-tag{background:rgba(249,171,0,.15);color:#b26a00;font-weight:600}
+
+/* ===== 宽大舒适的详细说明与执行指南 (Spacious Guide Canvas) ===== */
+.detail-guide-read{
+  min-height:180px;max-height:420px;overflow-y:auto;
+  background:var(--surface);border-radius:12px;border:1px solid var(--line);
+  padding:14px 16px;
+}
+.guide-content-flow{display:flex;flex-direction:column;gap:6px}
+.guide-section-badge{
+  display:inline-block;font-size:13.5px;font-weight:700;color:var(--primary-ink);
+  background:var(--primary-soft);padding:4px 10px;border-radius:8px;
+  margin:4px 0 2px;
+}
+.guide-paragraph{
+  font-size:14px;line-height:1.75;color:var(--text);margin:0;word-break:break-word;
+}
+.guide-list-item{
+  display:flex;align-items:flex-start;gap:8px;
+  font-size:14px;line-height:1.65;color:var(--text);margin:2px 0;
+}
+.guide-bullet{
+  width:6px;height:6px;border-radius:50%;background:var(--primary);
+  margin-top:8px;flex-shrink:0;
+}
+.guide-item-text{flex:1;word-break:break-word}
+.guide-highlight{
+  background:rgba(11,87,208,.08);color:var(--primary);
+  padding:1px 5px;border-radius:4px;font-weight:600;
+}
+.guide-gap{height:8px}
+.guide-empty-hint{
+  font-size:13.5px;line-height:1.7;color:var(--text3);
+  padding:20px 10px;text-align:center;cursor:pointer;
+}
+
+/* 编辑模式输入区 */
+.detail-guide-edit{display:flex;flex-direction:column;gap:10px}
+.detail-note-textarea{
+  width:100%;min-height:200px;max-height:360px;
+  border:1px solid var(--line);border-radius:12px;
+  padding:12px 14px;background:var(--surface);color:var(--text);
+  font-size:14.5px;line-height:1.7;resize:vertical;outline:none;
+}
+.detail-note-textarea:focus{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary-soft)}
+.detail-guide-actions{display:flex;justify-content:flex-end;gap:8px}
+
+.btn-text-sm{font-size:12.5px;font-weight:600;color:var(--primary);cursor:pointer;padding:2px 6px;border-radius:6px}
+.btn-text-sm:active{background:var(--primary-soft)}
+.btn-line-sm{
+  padding:6px 14px;border-radius:8px;border:1px solid var(--line);
+  background:var(--surface);color:var(--text2);font-size:13px;cursor:pointer;
+}
+.btn-filled-sm{
+  padding:6px 16px;border-radius:8px;background:var(--primary);color:#fff;
+  font-size:13px;font-weight:600;cursor:pointer;
+}
 
 /* 详情页底部 */
 .detail-footer{

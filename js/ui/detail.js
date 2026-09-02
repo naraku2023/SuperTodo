@@ -1,20 +1,25 @@
 /**
  * 任务详情页模块 (Task Detail Sheet)
- * 提供大字标题、独立步骤清单（支持一步步打勾完结）、进度条联动、执行指南查阅与快速修改
+ * 升级特性：
+ * 1. 支持任务阶段性多级细分 (Stages & Sub-steps)
+ * 2. 针对购物、计划、旅游、愿望、待办各分类的专属显示模板
+ * 3. 宽大舒适的执行指南与落地策略画布 (优雅排版阅读模式 + 宽敞编辑模式)
  */
 
 import { state, saveState, emit } from '../state.js';
-import { calculateProgress, createSubtask } from '../models.js';
+import { calculateProgress, createSubtask, groupSubtasksByStage } from '../models.js';
 import { openEdit, pushLayer, syncBack } from './modals.js';
 import { escapeHtml, fmtDue, isOverdue } from './list.js';
 
 let currentTask = null;
+let isEditingNote = false;
 
 const $ = s => document.querySelector(s);
 
 export function openDetail(task) {
   if (!task) return;
   currentTask = task;
+  isEditingNote = false;
 
   pushLayer();
   renderDetailContent();
@@ -32,6 +37,7 @@ export function closeDetail() {
   if (mask) mask.hidden = true;
   if (sheet) sheet.hidden = true;
   currentTask = null;
+  isEditingNote = false;
   syncBack();
 }
 
@@ -45,7 +51,7 @@ function saveCurrentInputs() {
     currentTask.title = titleInput.value.trim();
     changed = true;
   }
-  if (noteArea && noteArea.value !== (currentTask.note || '')) {
+  if (isEditingNote && noteArea && noteArea.value !== (currentTask.note || '')) {
     currentTask.note = noteArea.value;
     changed = true;
   }
@@ -71,31 +77,14 @@ export function renderDetailContent() {
     titleInput.classList.toggle('done', Boolean(t.done));
   }
 
-  // 3. 标签与截止日期栏
-  const metaBar = $('#detailMetaBar');
-  if (metaBar) {
-    let metaHtml = `<span class="detail-tag type-tag">${escapeHtml(t.type || '待办')}</span>`;
-    if (t.due) {
-      const overdue = isOverdue(t.due) && !t.done;
-      metaHtml += `
-        <span class="detail-tag due-tag ${overdue ? 'overdue' : ''}">
-          📅 ${fmtDue(t.due)} 截止
-        </span>
-      `;
-    }
-    if (t.scene) metaHtml += `<span class="detail-tag">${escapeHtml(t.scene)}</span>`;
-    if (t.cost) metaHtml += `<span class="detail-tag cost-tag">¥${t.cost}</span>`;
-    metaBar.innerHTML = metaHtml;
-  }
+  // 3. 分类定制专属模板展示栏
+  renderCategoryTemplate(t);
 
-  // 4. 渲染子任务步骤清单与进度
+  // 4. 渲染阶段性子任务步骤清单
   renderDetailSubtasks();
 
-  // 5. 详细说明与指南 textarea
-  const noteArea = $('#detailNoteTextarea');
-  if (noteArea) {
-    noteArea.value = t.note || '';
-  }
+  // 5. 渲染宽大舒适的执行指南与详细说明
+  renderGuideSection();
 
   // 6. 创建时间与底部信息
   const createTimeEl = $('#detailCreateTime');
@@ -106,7 +95,58 @@ export function renderDetailContent() {
 }
 
 /**
- * 渲染详情页子步骤（支持一步步打勾完结）
+ * 分类定制专属模板 (Category-Specific Templates)
+ */
+function renderCategoryTemplate(t) {
+  const metaBar = $('#detailMetaBar');
+  if (!metaBar) return;
+
+  const type = t.type || '待办';
+  let html = '';
+
+  // 基础分类标签
+  html += `<span class="detail-tag type-tag type-${escapeHtml(type)}">${escapeHtml(type)}</span>`;
+
+  // 截止日期
+  if (t.due) {
+    const overdue = isOverdue(t.due) && !t.done;
+    html += `
+      <span class="detail-tag due-tag ${overdue ? 'overdue' : ''}">
+        📅 ${fmtDue(t.due)} 截止
+      </span>
+    `;
+  }
+
+  // 根据分类渲染专属模块
+  if (type === '购物') {
+    const costText = (t.cost != null && t.cost > 0) ? `¥${t.cost}` : '未设预算';
+    html += `
+      <span class="detail-tag cost-tag">🛒 预算估算: ${costText}</span>
+    `;
+  } else if (type === '计划') {
+    const stageGroups = groupSubtasksByStage(t.subtasks || []);
+    const stageCount = stageGroups.filter(g => Boolean(g.stage)).length;
+    if (stageCount > 0) {
+      html += `<span class="detail-tag plan-tag">🎯 ${stageCount} 个执行阶段</span>`;
+    }
+  } else if (type === '旅游') {
+    if (t.scene) {
+      html += `<span class="detail-tag travel-tag">✈️ 目的地: ${escapeHtml(t.scene)}</span>`;
+    }
+  } else if (type === '愿望') {
+    const stars = t.star ? '★'.repeat(t.star) : '★★★';
+    html += `<span class="detail-tag wish-tag">🌟 心愿指数: ${stars}</span>`;
+  }
+
+  if (t.scene && type !== '旅游') {
+    html += `<span class="detail-tag scene-tag">${escapeHtml(t.scene)}</span>`;
+  }
+
+  metaBar.innerHTML = html;
+}
+
+/**
+ * 渲染阶段性子任务步骤（支持阶段分层与一步步打勾完结）
  */
 function renderDetailSubtasks() {
   if (!currentTask) return;
@@ -128,29 +168,140 @@ function renderDetailSubtasks() {
   if (total === 0) {
     listEl.innerHTML = `
       <div class="detail-subtasks-empty">
-        暂无拆解步骤，可以在下方输入添加具体的执行打卡清单。
+        暂无拆解步骤，可以在下方输入添加具体执行打卡清单。
       </div>
     `;
     return;
   }
 
+  // 按阶段分组
+  const stageGroups = groupSubtasksByStage(subtasks);
+  const hasMultipleStages = stageGroups.length > 1 || (stageGroups.length === 1 && Boolean(stageGroups[0].stage));
+
   let html = '';
-  subtasks.forEach(st => {
-    html += `
-      <div class="detail-step-row ${st.done ? 'is-done' : ''}" data-sub-id="${st.id}">
-        <!-- 步骤勾选框：点击仅切换该步骤，实现一步步打勾完结 -->
-        <label class="step-chk-label">
-          <input type="checkbox" class="step-real-chk" ${st.done ? 'checked' : ''}>
-          <span class="step-chk-box"></span>
-        </label>
-        <span class="step-title-text ${st.done ? 'done' : ''}">${escapeHtml(st.title)}</span>
-        <button type="button" class="step-del-btn" data-del-sub="${st.id}" title="删除步骤">✕</button>
-      </div>
-    `;
-  });
+
+  if (hasMultipleStages) {
+    // 渲染分阶段卡片 (Stages & Sub-steps)
+    stageGroups.forEach((group, gIdx) => {
+      const stageName = group.stage || '其他待办事项';
+      const isStageDone = group.total > 0 && group.completed === group.total;
+
+      html += `
+        <div class="detail-stage-block ${isStageDone ? 'stage-all-done' : ''}">
+          <div class="stage-header">
+            <span class="stage-icon">📌</span>
+            <span class="stage-name">${escapeHtml(stageName)}</span>
+            <span class="stage-badge">${group.completed}/${group.total}</span>
+            <div class="stage-bar-wrap">
+              <div class="stage-bar-fill" style="width:${group.percent}%"></div>
+            </div>
+          </div>
+          <div class="stage-step-items">
+            ${group.items.map(st => renderStepRowHtml(st)).join('')}
+          </div>
+        </div>
+      `;
+    });
+  } else {
+    // 平铺渲染普通清单
+    html = `<div class="detail-flat-steps">${subtasks.map(st => renderStepRowHtml(st)).join('')}</div>`;
+  }
 
   listEl.innerHTML = html;
 }
+
+function renderStepRowHtml(st) {
+  return `
+    <div class="detail-step-row ${st.done ? 'is-done' : ''}" data-sub-id="${st.id}">
+      <label class="step-chk-label">
+        <input type="checkbox" class="step-real-chk" ${st.done ? 'checked' : ''}>
+        <span class="step-chk-box"></span>
+      </label>
+      <span class="step-title-text ${st.done ? 'done' : ''}">${escapeHtml(st.title)}</span>
+      <button type="button" class="step-del-btn" data-del-sub="${st.id}" title="删除步骤">✕</button>
+    </div>
+  `;
+}
+
+/**
+ * 渲染宽大舒适的执行指南（阅读模式 vs 编辑模式）
+ */
+function renderGuideSection() {
+  const readEl = $('#detailGuideRead');
+  const editEl = $('#detailGuideEdit');
+  const textarea = $('#detailNoteTextarea');
+  const editBtn = $('#detailEditNoteBtn');
+  if (!readEl || !editEl) return;
+
+  const note = (currentTask && currentTask.note) ? currentTask.note.trim() : '';
+
+  if (isEditingNote) {
+    readEl.hidden = true;
+    editEl.hidden = false;
+    if (textarea) textarea.value = note;
+    if (editBtn) editBtn.hidden = true;
+  } else {
+    readEl.hidden = false;
+    editEl.hidden = true;
+    if (editBtn) editBtn.hidden = false;
+
+    if (!note) {
+      readEl.innerHTML = `
+        <div class="guide-empty-hint" id="guideEmptyPrompt">
+          暂无详细指南与备注。点击右上角 <b>✎ 编辑内容</b> 补充落地步骤、备忘指南或思考心得...
+        </div>
+      `;
+    } else {
+      // 优雅富文本格式化渲染
+      readEl.innerHTML = formatGuideMarkdown(note);
+    }
+  }
+}
+
+/**
+ * 将指南文本渲染为排版舒适的结构化内容
+ */
+function formatGuideMarkdown(text) {
+  const lines = text.split('\n');
+  let html = '<div class="guide-content-flow">';
+
+  lines.forEach(line => {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      html += '<div class="guide-gap"></div>';
+      return;
+    }
+
+    // 标题类
+    if (trimmed.startsWith('【') && trimmed.includes('】')) {
+      html += `<div class="guide-section-badge">${escapeHtml(trimmed)}</div>`;
+    } else if (/^(\d+[\.\、]|[-*•])\s+/.test(trimmed)) {
+      // 列表项或序号项
+      const clean = trimmed.replace(/^(\d+[\.\、]|[-*•])\s+/, '');
+      html += `
+        <div class="guide-list-item">
+          <span class="guide-bullet"></span>
+          <span class="guide-item-text">${highlightKeyTerms(escapeHtml(clean))}</span>
+        </div>
+      `;
+    } else {
+      // 普通段落
+      html += `<p class="guide-paragraph">${highlightKeyTerms(escapeHtml(trimmed))}</p>`;
+    }
+  });
+
+  html += '</div>';
+  return html;
+}
+
+function highlightKeyTerms(str) {
+  // 高亮粗体及关键提示
+  return str
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/([0-9]+(?:\.[0-9]+)?(?:[分题天周个次元小时分钟套道章%]+))/g, '<span class="guide-highlight">$1</span>');
+}
+
+// ================= 事件初始化与委托 =================
 
 function onReady(fn) {
   if (document.readyState === 'loading') {
@@ -160,7 +311,6 @@ function onReady(fn) {
   }
 }
 
-// 事件委托监听
 onReady(() => {
   initDetailEvents();
 });
@@ -200,7 +350,7 @@ export function initDetailEvents() {
     openEdit(it);
   });
 
-  // 5. 步骤清单内的交互：一步步打勾完成、删除步骤
+  // 5. 步骤清单交互：单项打勾、单项删除 (一步步完结)
   $('#detailSubtasksList')?.addEventListener('click', (e) => {
     if (!currentTask || !currentTask.subtasks) return;
 
@@ -224,7 +374,7 @@ export function initDetailEvents() {
       if (sub) {
         sub.done = !sub.done;
 
-        // 如果所有步骤都已完成，联动将主任务完成；反之若还有未完步骤则保持主任务激活
+        // 若所有步骤都完成，可联动主任务
         const { total, completed } = calculateProgress(currentTask.subtasks);
         if (total > 0 && completed === total) {
           currentTask.done = true;
@@ -265,7 +415,35 @@ export function initDetailEvents() {
     }
   });
 
-  // 7. 实时保存标题和指南文本
+  // 7. 指南阅读模式与编辑模式切换
+  $('#detailEditNoteBtn')?.addEventListener('click', () => {
+    isEditingNote = true;
+    renderGuideSection();
+    setTimeout(() => $('#detailNoteTextarea')?.focus(), 100);
+  });
+
+  $('#guideEmptyPrompt')?.addEventListener('click', () => {
+    isEditingNote = true;
+    renderGuideSection();
+    setTimeout(() => $('#detailNoteTextarea')?.focus(), 100);
+  });
+
+  $('#detailCancelNoteBtn')?.addEventListener('click', () => {
+    isEditingNote = false;
+    renderGuideSection();
+  });
+
+  $('#detailSaveNoteBtn')?.addEventListener('click', () => {
+    if (!currentTask) return;
+    const textarea = $('#detailNoteTextarea');
+    if (textarea) {
+      currentTask.note = textarea.value.trim();
+      saveState();
+    }
+    isEditingNote = false;
+    renderGuideSection();
+  });
+
+  // 8. 实时保存标题
   $('#detailTitleInput')?.addEventListener('blur', saveCurrentInputs);
-  $('#detailNoteTextarea')?.addEventListener('blur', saveCurrentInputs);
 }

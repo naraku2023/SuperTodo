@@ -189,12 +189,22 @@ try{const d=JSON.parse(localStorage.getItem('listapp.data.v2')),m=d&&d.colorMode
       </div>
     </div>
 
-    <!-- 详细说明与执行指南 (展示 AI 生成的深度指导) -->
-    <div class="detail-card-section">
+    <!-- 详细说明与执行指南 (宽大舒适的展示与编辑区) -->
+    <div class="detail-card-section" id="detailGuideSection">
       <div class="detail-sec-header">
         <span class="detail-sec-title">详细说明与执行指南</span>
+        <button type="button" class="btn-text-sm" id="detailEditNoteBtn">✎ 编辑内容</button>
       </div>
-      <textarea id="detailNoteTextarea" class="detail-note-textarea" placeholder="暂无备注说明，点击输入执行指南或备忘..." rows="4"></textarea>
+      <!-- 阅读模式 (大字号、宽敞行距、优雅富文本排版) -->
+      <div class="detail-guide-read" id="detailGuideRead"></div>
+      <!-- 编辑模式 (宽敞的无压迫输入画布) -->
+      <div class="detail-guide-edit" id="detailGuideEdit" hidden>
+        <textarea id="detailNoteTextarea" class="detail-note-textarea" placeholder="输入详细落地指南、备考建议或清单备注..." rows="8"></textarea>
+        <div class="detail-guide-actions">
+          <button type="button" class="btn-line-sm" id="detailCancelNoteBtn">取消</button>
+          <button type="button" class="btn-filled-sm" id="detailSaveNoteBtn">保存指南</button>
+        </div>
+      </div>
     </div>
   </div>
   <div class="detail-footer">
@@ -325,7 +335,7 @@ try{const d=JSON.parse(localStorage.getItem('listapp.data.v2')),m=d&&d.colorMode
         <img class="info-logo-dark" src="app-icon-dark.png" alt="">
       </div>
       <div class="info-name">超级清单</div>
-      <div class="info-ver" id="infoVer">SuperTodo · 版本 1.7.4</div>
+      <div class="info-ver" id="infoVer">SuperTodo · 版本 1.7.5</div>
     </div>
     <div class="info-meta">
       <div class="info-row"><span class="info-k">作者</span><span class="info-v">派大星TuT</span></div>
