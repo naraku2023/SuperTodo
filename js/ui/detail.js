@@ -446,4 +446,16 @@ export function initDetailEvents() {
 
   // 8. 实时保存标题
   $('#detailTitleInput')?.addEventListener('blur', saveCurrentInputs);
+
+  // 9. 打开此事项的专属 AI 规划顾问
+  const openCopilot = () => {
+    if (!currentTask) return;
+    saveCurrentInputs();
+    window.openAiChatDrawer?.(currentTask);
+  };
+  $('#detailAiBtn')?.addEventListener('click', openCopilot);
+  $('#detailOpenAiBtn')?.addEventListener('click', openCopilot);
+
+  // 暴露全局刷新方法供 AI 抽屉采纳动作后即时同步刷新
+  window.renderCurrentDetail = () => renderDetailContent();
 }

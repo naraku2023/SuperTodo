@@ -60,12 +60,15 @@ export function createTask(data = {}) {
     due: (typeof data.due === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.due)) ? data.due : '',
     star: (typeof data.star === 'number' && data.star >= 0 && data.star <= 5) ? Math.round(data.star) : 0,
     done: Boolean(data.done),
+    completedAt: data.completedAt || (data.done ? (data.completedAt || now) : null),
     order: (typeof data.order === 'number') ? data.order : 0,
     created: data.created || now,
     // 子任务列表
     subtasks: Array.isArray(data.subtasks) 
       ? data.subtasks.map(s => createSubtask(s))
-      : []
+      : [],
+    // 事项专属 AI 对话流历史
+    chatHistory: Array.isArray(data.chatHistory) ? data.chatHistory : []
   };
 }
 

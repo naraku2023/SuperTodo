@@ -5,7 +5,7 @@
 
 import { state, loadState, saveState, on, applyColorMode, toggleColorMode } from './state.js';
 import { renderContent, escapeHtml } from './ui/list.js';
-import { buildStars, openAdd, openEdit, openSettings, openSort, openInfo, pushLayer, syncBack, closeTopLayer, onReady } from './ui/modals.js';
+import { buildStars, openAdd, openEdit, openSettings, openSort, openInfo, pushLayer, syncBack, closeTopLayer, onReady, showToast } from './ui/modals.js';
 import { openDetail } from './ui/detail.js';
 import { ChatDrawer } from './ui/chat-drawer.js';
 
@@ -19,17 +19,19 @@ function renderDrawerNav() {
   const nav = $('#drawerNav');
   if (!nav) return;
 
-  const total = state.items.length;
+  const activeTotal = state.items.filter(i => !i.done).length;
+  const archivedTotal = state.items.filter(i => i.done).length;
+
   let html = `
     <button class="dnav-item dnav-all ${state.type === '全部' ? 'on' : ''}" data-t="全部">
       <span class="dnav-ic" style="background:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%235f6368%22><path d=%22M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z%22/></svg>') center/contain no-repeat"></span>
-      <span class="dnav-t">全部</span>
-      <span class="dnav-c">${total}</span>
+      <span class="dnav-t">全部待办</span>
+      <span class="dnav-c">${activeTotal}</span>
     </button>
   `;
 
   state.types.forEach((t, idx) => {
-    const cnt = state.items.filter(i => i.type === t).length;
+    const cnt = state.items.filter(i => !i.done && i.type === t).length;
     html += `
       <button class="dnav-item ${state.type === t ? 'on' : ''}" data-t="${escapeHtml(t)}" data-idx="${idx}" data-kind="type">
         <span class="dnav-ic" style="background:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%235f6368%22><path d=%22M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z%22/></svg>') center/contain no-repeat"></span>
@@ -40,6 +42,17 @@ function renderDrawerNav() {
   });
 
   html += `<button class="dnav-item dnav-add" id="dnavAdd"><span class="dnav-ic">+</span><span class="dnav-t">新增类型</span></button>`;
+
+  // 专属已完成归档箱分区
+  html += `
+    <div class="dnav-sep"></div>
+    <button class="dnav-item dnav-archived ${state.type === '已归档' ? 'on' : ''}" data-t="已归档">
+      <span class="dnav-ic" style="background:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%235f6368%22><path d=%22M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12l.94 1H5.12z%22/></svg>') center/contain no-repeat"></span>
+      <span class="dnav-t">已归档事项</span>
+      <span class="dnav-c ${archivedTotal > 0 ? 'highlight-archived' : ''}">${archivedTotal}</span>
+    </button>
+  `;
+
   nav.innerHTML = html;
 }
 
@@ -51,11 +64,11 @@ function updateAppTitle() {
   const gb = $('#homeGroupby');
 
   if (state.view.name === 'home') {
-    if (t) t.textContent = state.type;
+    if (t) t.textContent = state.type === '全部' ? '全部待办' : state.type;
     if (back) back.hidden = true;
     if (ham) ham.hidden = false;
-    if (sortBtn) sortBtn.hidden = false;
-    if (gb) gb.hidden = true; // 隐藏旧版混乱的按场景/按时间切分条
+    if (sortBtn) sortBtn.hidden = state.type === '已归档';
+    if (gb) gb.hidden = true;
   } else {
     if (t) t.textContent = state.view.group || '分组详情';
     if (back) back.hidden = false;
@@ -88,6 +101,13 @@ function toggleDone(id) {
   const it = state.items.find(x => x.id === id);
   if (!it) return;
   it.done = !it.done;
+  if (it.done) {
+    it.completedAt = Date.now();
+    showToast('已完成并移至“已归档”');
+  } else {
+    it.completedAt = null;
+    showToast('已恢复至待办清单');
+  }
   saveState();
   render();
 }
@@ -215,6 +235,21 @@ onReady(() => {
       e.stopPropagation();
       const it = state.items.find(x => x.id === detailBtn.dataset.id);
       if (it) openDetail(it);
+      return;
+    }
+
+    // 3. 一键清空所有已归档事项
+    const clearArchiveBtn = e.target.closest('#clearArchiveBtn');
+    if (clearArchiveBtn) {
+      e.stopPropagation();
+      const doneCount = state.items.filter(i => i.done).length;
+      if (doneCount === 0) return;
+      if (confirm(`确定彻底清空所有已归档事项吗？共 ${doneCount} 项，清空后不可恢复。`)) {
+        state.items = state.items.filter(i => !i.done);
+        saveState();
+        render();
+        showToast('已清空归档事项');
+      }
       return;
     }
   });

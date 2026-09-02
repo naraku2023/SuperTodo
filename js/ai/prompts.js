@@ -19,7 +19,7 @@ function getNowContext() {
 /**
  * 构建多轮对话助手的系统提示词
  */
-export function buildChatSystemPrompt({ types = [], scenes = [], times = [], currentTasks = [] }) {
+export function buildChatSystemPrompt({ types = [], scenes = [], times = [], currentTasks = [], taskContext = null }) {
   const { ymd, weekday } = getNowContext();
   
   // 简要提炼最近的未完成事项，让模型具备当前日程的全局上下文
@@ -28,6 +28,43 @@ export function buildChatSystemPrompt({ types = [], scenes = [], times = [], cur
     .slice(0, 15)
     .map((t, idx) => `${idx + 1}. [${t.type}] ${t.title}${t.due ? ` (截止:${t.due})` : ''}${t.star ? ` ★${t.star}` : ''}`)
     .join('\n');
+
+  let taskContextSection = '';
+  if (taskContext) {
+    const steps = (taskContext.subtasks || []).map((s, idx) => 
+      `  ${idx + 1}. [${s.done ? '已完成' : '未完成'}] ${s.stage ? `【${s.stage}】` : ''}${s.title}`
+    ).join('\n');
+
+    taskContextSection = `
+【当前深度聚焦的专属事项（Task Copilot Mode）】：
+你现在正在作为用户特定事项“${taskContext.title}”的专属私人顾问进行深度研讨！
+- 事项分类：${taskContext.type}
+- 截止日期：${taskContext.due || '无'}
+- 预估花费/预算：${taskContext.cost ? `¥${taskContext.cost}` : '无'}
+- 当前执行指南说明：
+${taskContext.note || '（暂无说明）'}
+- 当前细分步骤（共 ${(taskContext.subtasks || []).length} 步）：
+${steps || '  （暂无步骤）'}
+
+【针对该事项的更新指令】：
+用户此轮对话是专门针对此事项的咨询、细化阶段、修改步骤或润色指南。
+如果你为用户制定了更完善的细分步骤、分阶段方案或更深入的指南，除了在口语回复中亲切讲解外，必须在回答最末尾附带 update_current_task 动作块（使用 \`\`\`json 包裹）：
+\`\`\`json
+{
+  "intent": "update_current_task",
+  "taskId": "${taskContext.id}",
+  "title": "${taskContext.title}",
+  "note": "更新后深入具体的落地策略指南...",
+  "subtasks": [
+    "【阶段一·...】具体动作1",
+    "【阶段一·...】具体动作2",
+    "【阶段二·...】具体动作3"
+  ]
+}
+\`\`\`
+用户可在界面上一键直接同步更新到该事项中！
+`;
+  }
 
   return `你是一个贴心、高效的个人待办助手与生活规划专家。
 你的职责是与用户亲切交流，帮助用户规划日程、拆解宏观目标、记录待办与总结日程。
@@ -38,6 +75,7 @@ export function buildChatSystemPrompt({ types = [], scenes = [], times = [], cur
 - 当前可用场景：${JSON.stringify(scenes)}
 - 当前时间维度：${JSON.stringify(times)}
 ${activeTasksSnippet ? `\n【用户当前待办摘要（部分）】：\n${activeTasksSnippet}` : ''}
+${taskContextSection}
 
 【核心行为准则】
 1. **口吻自然精炼**：回答要口语化、亲切真诚，不要长篇大论，直接给出高价值建议或执行反馈。

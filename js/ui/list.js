@@ -41,13 +41,20 @@ export function fmtDue(dateStr) {
 }
 
 /**
- * 过滤当前分类及搜索结果
+ * 过滤当前分类及搜索结果（已完成事项统一独立归入已归档专区）
  */
 export function currentItems() {
   let list = state.items.slice();
-  if (state.type !== '全部') {
-    list = list.filter(i => i.type === state.type);
+  if (state.type === '已归档') {
+    list = list.filter(i => i.done);
+  } else {
+    // 正常视图只展示进行中的未完成事项，完成的事项自动归档到已归档中心
+    list = list.filter(i => !i.done);
+    if (state.type !== '全部') {
+      list = list.filter(i => i.type === state.type);
+    }
   }
+
   if (state.search) {
     const q = state.search.toLowerCase();
     list = list.filter(i => (i.title + (i.note || '')).toLowerCase().includes(q));
@@ -89,6 +96,8 @@ export function renderContent() {
   if (!wrap) return;
 
   const allItems = currentItems();
+  const isArchiveMode = state.type === '已归档';
+
   if (!allItems.length) {
     if (empty) empty.hidden = false;
     renderEmptyText();
@@ -97,45 +106,45 @@ export function renderContent() {
   }
   if (empty) empty.hidden = true;
 
-  const undoneItems = sortItems(allItems.filter(i => !i.done));
-  const doneItems = allItems.filter(i => i.done);
-
   let html = '';
 
-  // 1. 未完成事项列表
-  if (undoneItems.length > 0) {
+  if (isArchiveMode) {
+    // 专门的独立已归档中心视图
+    html += `
+      <div class="archive-header-card">
+        <div class="archive-header-left">
+          <span class="archive-header-icon">📦</span>
+          <div class="archive-header-text">
+            <span class="archive-header-title">已归档清单 (${allItems.length})</span>
+            <span class="archive-header-desc">已完结事项保存在此，点击左侧圆圈可随时恢复</span>
+          </div>
+        </div>
+        ${allItems.length > 0 ? `<button type="button" class="btn-clear-archive" id="clearArchiveBtn">清空归档</button>` : ''}
+      </div>
+      <div class="task-list archive-task-list" id="archiveList">
+        ${allItems.map(it => renderTaskCard(it, false)).join('')}
+      </div>
+    `;
+  } else {
+    // 普通未完成待办事项列表（纯净高效）
+    const sorted = sortItems(allItems);
     html += `
       <div class="task-group active-group">
         <div class="group-header">
-          <span class="group-title">待办事项</span>
-          <span class="group-count">${undoneItems.length}</span>
+          <span class="group-title">${state.type === '全部' ? '待办事项' : escapeHtml(state.type)}</span>
+          <span class="group-count">${sorted.length}</span>
         </div>
         <div class="task-list" id="undoneList">
-          ${undoneItems.map(it => renderTaskCard(it, true)).join('')}
+          ${sorted.map(it => renderTaskCard(it, true)).join('')}
         </div>
-      </div>
-    `;
-  }
-
-  // 2. 已完成事项列表（折叠式展示，不抢占视觉）
-  if (doneItems.length > 0) {
-    html += `
-      <div class="task-group completed-group">
-        <details class="completed-details" ${undoneItems.length === 0 ? 'open' : ''}>
-          <summary class="completed-summary">
-            <span class="cs-title">已完成</span>
-            <span class="cs-count">${doneItems.length}</span>
-          </summary>
-          <div class="task-list done-list">
-            ${doneItems.map(it => renderTaskCard(it, false)).join('')}
-          </div>
-        </details>
       </div>
     `;
   }
 
   wrap.innerHTML = html;
-  initSortable(document.querySelector('#undoneList'));
+  if (!isArchiveMode) {
+    initSortable(document.querySelector('#undoneList'));
+  }
 }
 
 /**
@@ -231,6 +240,11 @@ function renderTaskCard(it, isUndone) {
 function renderEmptyText() {
   const t = document.querySelector('#emptyTitle');
   const s = document.querySelector('#emptySub');
+  if (state.type === '已归档') {
+    if (t) t.textContent = '暂无已归档事项';
+    if (s) s.textContent = '打勾完成的事项会自动移动到这里归档保存';
+    return;
+  }
   if (t) t.textContent = state.search ? '无搜索结果' : '暂无待办事项';
   if (s) s.textContent = state.search ? '换个关键词试试' : '点击右下角 + 添加，或让 AI 帮您规划';
 }

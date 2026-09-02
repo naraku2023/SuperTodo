@@ -15,6 +15,7 @@ export class ChatDrawer {
     this.input = null;
     this.sendBtn = null;
     this.isOpen = false;
+    this.currentTask = null; // 当前聚焦的事项对象（若为 null 则为全局规划助手）
   }
 
   init() {
@@ -31,7 +32,7 @@ export class ChatDrawer {
           <div class="chat-header-info">
             <div class="chat-avatar"></div>
             <div>
-              <div class="chat-title">AI 智能规划助理</div>
+              <div class="chat-title" id="chatDrawerTitle">AI 智能规划助理</div>
               <div class="chat-model-badge" id="chatModelBadge">DeepSeek</div>
             </div>
           </div>
@@ -51,12 +52,7 @@ export class ChatDrawer {
         </div>
 
         <!-- 快捷指令标签栏 -->
-        <div class="chat-quick-tags" id="chatQuickTags">
-          <button class="quick-chip" data-prompt="我打算在下个月考过驾照科目一，帮我拆解一个2周的学习计划">🎯 拆解两周考驾照计划</button>
-          <button class="quick-chip" data-prompt="帮我看看今天有哪些待办事项？给出执行优先级建议">📋 梳理今日待办优先级</button>
-          <button class="quick-chip" data-prompt="总结我目前的待办事项与花费预算">📊 总结事项与花费统计</button>
-          <button class="quick-chip" data-prompt="针对我拖延的任务，给我3个实用的SMART执行建议">💡 给我3个执行小技巧</button>
-        </div>
+        <div class="chat-quick-tags" id="chatQuickTags"></div>
 
         <!-- 底部输入框 -->
         <div class="chat-footer">
@@ -86,8 +82,11 @@ export class ChatDrawer {
     document.querySelector('#chatCloseBtn').onclick = () => this.close();
     
     document.querySelector('#chatClearBtn').onclick = () => {
-      if (confirm('确定清空与 AI 的对话记录吗？')) {
-        agent.clearHistory();
+      const msg = this.currentTask
+        ? `确定清空针对“${this.currentTask.title}”的专属对话记录吗？`
+        : '确定清空与 AI 的全局对话记录吗？';
+      if (confirm(msg)) {
+        agent.clearHistory(this.currentTask);
         this.renderMessages();
       }
     };
@@ -103,20 +102,23 @@ export class ChatDrawer {
       }
     };
 
-    // 快捷指令
-    document.querySelectorAll('.quick-chip').forEach(chip => {
-      chip.onclick = () => {
-        const text = chip.getAttribute('data-prompt');
+    // 事件委托点击快捷指令
+    document.querySelector('#chatQuickTags')?.addEventListener('click', (e) => {
+      const chip = e.target.closest('.quick-chip');
+      if (!chip) return;
+      const text = chip.getAttribute('data-prompt');
+      if (text) {
         this.input.value = text;
         this.handleSend();
-      };
+      }
     });
 
     // 监听外部打开对话抽屉事件
-    window.openAiChatDrawer = () => this.open();
+    window.openAiChatDrawer = (task = null) => this.open(task);
   }
 
-  open() {
+  open(task = null) {
+    this.currentTask = task;
     this.isOpen = true;
     this.mask.hidden = false;
     this.drawer.hidden = false;
@@ -125,12 +127,20 @@ export class ChatDrawer {
       this.mask.classList.add('open');
     });
 
-    // 更新模型显示
+    // 更新标题与标签
+    const titleEl = document.querySelector('#chatDrawerTitle');
     const badge = document.querySelector('#chatModelBadge');
-    if (badge) {
-      badge.textContent = state.ai.model || '未连接';
+    if (this.currentTask) {
+      if (titleEl) titleEl.textContent = `AI 助手 · ${this.currentTask.title}`;
+      if (badge) badge.textContent = `【${this.currentTask.type || '专属'}】协助`;
+      this.input.placeholder = `和 AI 研讨“${this.currentTask.title}”，如：帮我细化步骤...`;
+    } else {
+      if (titleEl) titleEl.textContent = 'AI 智能规划助理';
+      if (badge) badge.textContent = state.ai.model || '全局规划';
+      this.input.placeholder = '和 AI 规划师对话，如：帮我安排下周日程...';
     }
 
+    this.renderQuickTags();
     this.renderMessages();
     setTimeout(() => this.input.focus(), 250);
   }
@@ -142,29 +152,71 @@ export class ChatDrawer {
     setTimeout(() => {
       this.drawer.hidden = true;
       this.mask.hidden = true;
+      this.currentTask = null;
     }, 280);
+  }
+
+  renderQuickTags() {
+    const tagsWrap = document.querySelector('#chatQuickTags');
+    if (!tagsWrap) return;
+
+    if (this.currentTask) {
+      tagsWrap.innerHTML = `
+        <button class="quick-chip" data-prompt="帮我把这个事项分阶段进一步细化，列出具体落地的执行清单">🎯 细化阶段步骤</button>
+        <button class="quick-chip" data-prompt="针对这个事项，为我总结一份落地避坑指南与核心实操策略">💡 补充避坑指南</button>
+        <button class="quick-chip" data-prompt="根据执行难点，帮我优化一下这个事项的执行节奏与截止时间">⏱ 优化时间节奏</button>
+        <button class="quick-chip" data-prompt="帮我推荐接下来最关键的第一步具体行动动作">⚡ 推荐首步动作</button>
+      `;
+    } else {
+      tagsWrap.innerHTML = `
+        <button class="quick-chip" data-prompt="我打算在下个月考过驾照科目一，帮我拆解一个2周的学习计划">🎯 拆解两周考驾照计划</button>
+        <button class="quick-chip" data-prompt="帮我看看今天有哪些待办事项？给出执行优先级建议">📋 梳理今日待办优先级</button>
+        <button class="quick-chip" data-prompt="总结我目前的待办事项与花费预算">📊 总结事项与花费统计</button>
+        <button class="quick-chip" data-prompt="针对我拖延的任务，给我3个实用的SMART执行建议">💡 给我3个执行小技巧</button>
+      `;
+    }
   }
 
   renderMessages() {
     this.messagesWrap.innerHTML = '';
 
-    if (state.chatHistory.length === 0) {
-      this.messagesWrap.innerHTML = `
-        <div class="chat-welcome">
-          <div class="cw-icon">✨</div>
-          <div class="cw-title">你好！我是你的 AI 规划助理</div>
-          <div class="cw-desc">
-            告诉我你的目标或口语记事，我可以帮你：<br>
-            • 自动抽取时间、分类并录入待办<br>
-            • 一键将复杂目标拆解为执行清单 (Checklist)<br>
-            • 梳理优先级并生成复盘总结
+    const history = this.currentTask 
+      ? (this.currentTask.chatHistory || [])
+      : (state.chatHistory || []);
+
+    if (history.length === 0) {
+      if (this.currentTask) {
+        this.messagesWrap.innerHTML = `
+          <div class="chat-welcome">
+            <div class="cw-icon">🤖</div>
+            <div class="cw-title">“${escapeHtml(this.currentTask.title)}” 专属协作</div>
+            <div class="cw-desc">
+              我是当前事项的私人顾问！你可以直接对我说：<br>
+              • “帮我把这个事项细化为2~3个阶段的具体打卡清单”<br>
+              • “为这个任务写一份详实的实战避坑指南”<br>
+              • “根据现有步骤，补充需要采购或准备的物品”<br>
+              AI 提出的优化方案支持<b>一键直接同步更新到该事项</b>！
+            </div>
           </div>
-        </div>
-      `;
+        `;
+      } else {
+        this.messagesWrap.innerHTML = `
+          <div class="chat-welcome">
+            <div class="cw-icon">✨</div>
+            <div class="cw-title">你好！我是你的全局 AI 规划助理</div>
+            <div class="cw-desc">
+              告诉我你的目标或口语记事，我可以帮你：<br>
+              • 自动抽取时间、分类并录入待办<br>
+              • 一键将复杂目标拆解为执行清单 (Checklist)<br>
+              • 梳理优先级并生成日程复盘总结
+            </div>
+          </div>
+        `;
+      }
       return;
     }
 
-    state.chatHistory.forEach(msg => {
+    history.forEach(msg => {
       this.appendMessageElement(msg);
     });
 
@@ -178,7 +230,7 @@ export class ChatDrawer {
     row.id = `msg_${msg.id}`;
 
     let actionCardHtml = '';
-    if (msg.actionPayload && msg.actionPayload.tasks && msg.actionPayload.tasks.length > 0) {
+    if (msg.actionPayload) {
       actionCardHtml = this.renderActionCard(msg.actionPayload, msg.id);
     }
 
@@ -197,9 +249,16 @@ export class ChatDrawer {
       const btn = row.querySelector(`.action-apply-btn[data-msg-id="${msg.id}"]`);
       if (btn) {
         btn.onclick = () => {
-          const count = agent.applyAction(msg.actionPayload);
+          const count = agent.applyAction(msg.actionPayload, this.currentTask);
           btn.disabled = true;
-          btn.textContent = `✓ 已成功添加 ${count} 项待办`;
+          if (msg.actionPayload.intent === 'update_current_task') {
+            btn.textContent = '✓ 已成功同步至当前事项！';
+            if (window.renderCurrentDetail) {
+              window.renderCurrentDetail();
+            }
+          } else {
+            btn.textContent = `✓ 已成功添加 ${count} 项待办`;
+          }
           btn.classList.add('applied');
         };
       }
@@ -207,7 +266,33 @@ export class ChatDrawer {
   }
 
   renderActionCard(payload, msgId) {
+    // 1. 事项专属更新动作卡片 (update_current_task)
+    if (payload.intent === 'update_current_task') {
+      let subHtml = '';
+      if (payload.subtasks && payload.subtasks.length) {
+        subHtml = `<div class="action-subtasks"><b>细化步骤清单：</b><br>${payload.subtasks.map(s => `• ${escapeHtml(typeof s === 'string' ? s : s.title)}`).join('<br>')}</div>`;
+      }
+      let noteHtml = '';
+      if (payload.note) {
+        const preview = payload.note.length > 120 ? payload.note.slice(0, 120) + '...' : payload.note;
+        noteHtml = `<div class="action-note-preview"><b>落地策略指南：</b><br>${escapeHtml(preview)}</div>`;
+      }
+
+      return `
+        <div class="action-card action-update-card">
+          <div class="action-card-head">⚡ 事项专属优化方案（点击一键同步）：</div>
+          ${payload.title && this.currentTask && payload.title !== this.currentTask.title ? `<div class="action-item-title">📌 优化标题：${escapeHtml(payload.title)}</div>` : ''}
+          ${subHtml}
+          ${noteHtml}
+          <button class="action-apply-btn action-update-btn" data-msg-id="${msgId}">✓ 一键更新到当前事项</button>
+        </div>
+      `;
+    }
+
+    // 2. 批量新建任务卡片
     const tasks = payload.tasks || [];
+    if (!tasks.length) return '';
+
     let itemsHtml = '';
     tasks.forEach(t => {
       let subHtml = '';
@@ -281,7 +366,7 @@ export class ChatDrawer {
           textEl.innerHTML = `<span style="color:var(--danger)">生成出错: ${err.message}</span>`;
           this.scrollToBottom();
         }
-      });
+      }, this.currentTask);
     } catch (err) {
       this.sendBtn.disabled = false;
       textEl.innerHTML = `<span style="color:var(--danger)">错误: ${err.message}</span>`;

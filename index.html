@@ -147,6 +147,11 @@ try{const d=JSON.parse(localStorage.getItem('listapp.data.v2')),m=d&&d.colorMode
       <span>返回</span>
     </button>
     <div class="detail-head-actions">
+      <button type="button" class="detail-action-icon ai-btn-icon" id="detailAiBtn" title="AI专属顾问">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+          <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
+        </svg>
+      </button>
       <button type="button" class="detail-action-icon danger" id="detailDelete" title="删除事项">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
           <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
@@ -172,6 +177,18 @@ try{const d=JSON.parse(localStorage.getItem('listapp.data.v2')),m=d&&d.colorMode
 
     <!-- 标签胶囊栏 (截止日期、分类等) -->
     <div class="detail-meta-bar" id="detailMetaBar"></div>
+
+    <!-- 事项专属 AI 规划顾问入口卡片 -->
+    <div class="detail-ai-copilot-card" id="detailOpenAiBtn">
+      <div class="copilot-card-left">
+        <span class="copilot-icon">🤖</span>
+        <div class="copilot-text-wrap">
+          <div class="copilot-title">AI 事项专属顾问</div>
+          <div class="copilot-desc">点击与 AI 深度研讨此事项、细化阶段打卡步骤或生成避坑指南</div>
+        </div>
+      </div>
+      <span class="copilot-arrow">💬 开始研讨 ›</span>
+    </div>
 
     <!-- 核心：执行步骤清单（可一步步打勾完结） -->
     <div class="detail-card-section">
@@ -335,7 +352,7 @@ try{const d=JSON.parse(localStorage.getItem('listapp.data.v2')),m=d&&d.colorMode
         <img class="info-logo-dark" src="app-icon-dark.png" alt="">
       </div>
       <div class="info-name">超级清单</div>
-      <div class="info-ver" id="infoVer">SuperTodo · 版本 1.7.5</div>
+      <div class="info-ver" id="infoVer">SuperTodo · 版本 1.7.6</div>
     </div>
     <div class="info-meta">
       <div class="info-row"><span class="info-k">作者</span><span class="info-v">派大星TuT</span></div>

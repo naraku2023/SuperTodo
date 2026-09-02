@@ -67,9 +67,9 @@ class AIAgent {
   }
 
   /**
-   * 发起多轮对话流式生成
+   * 发起多轮对话流式生成（支持特定事项上下文 taskContext）
    */
-  async sendMessage(userText, { onDelta, onComplete, onError }) {
+  async sendMessage(userText, { onDelta, onComplete, onError }, taskContext = null) {
     if (!this.isConfigured()) {
       throw new Error('未配置或未开启 AI 服务，请先前往「设置」配置 API Key');
     }
@@ -83,24 +83,34 @@ class AIAgent {
     this.abortController = new AbortController();
     this.isGenerating = true;
 
+    // 判断是事项专属对话还是全局对话
+    const historyList = taskContext 
+      ? (Array.isArray(taskContext.chatHistory) ? taskContext.chatHistory : (taskContext.chatHistory = []))
+      : state.chatHistory;
+
     // 记录用户消息
     const userMsg = createChatMessage('user', userText);
-    state.chatHistory.push(userMsg);
+    historyList.push(userMsg);
     saveState();
-    emit('chat-updated', state.chatHistory);
+    if (taskContext) {
+      emit('task-chat-updated', { taskId: taskContext.id, history: historyList });
+    } else {
+      emit('chat-updated', state.chatHistory);
+    }
 
     // 构造请求消息序列 (System + 最近对话历史)
     const systemPrompt = buildChatSystemPrompt({
       types: state.types,
       scenes: state.scenes,
       times: state.times,
-      currentTasks: state.items
+      currentTasks: state.items,
+      taskContext
     });
 
     const messages = [{ role: 'system', content: systemPrompt }];
 
     // 取最近 6 轮对话保持上下文记忆
-    const recentHistory = state.chatHistory.slice(-12);
+    const recentHistory = historyList.slice(-12);
     for (const msg of recentHistory) {
       messages.push({
         role: msg.role === 'assistant' ? 'assistant' : 'user',
@@ -126,9 +136,13 @@ class AIAgent {
 
           // 保存助手回复
           const botMsg = createChatMessage('assistant', displayText, actionPayload);
-          state.chatHistory.push(botMsg);
+          historyList.push(botMsg);
           saveState();
-          emit('chat-updated', state.chatHistory);
+          if (taskContext) {
+            emit('task-chat-updated', { taskId: taskContext.id, history: historyList });
+          } else {
+            emit('chat-updated', state.chatHistory);
+          }
 
           onComplete?.(botMsg);
         },
@@ -146,10 +160,33 @@ class AIAgent {
   }
 
   /**
-   * 应用 AI 提议的操作动作（新建任务、拆解目标等）
+   * 应用 AI 提议的操作动作（新建任务、更新特定事项等）
    */
-  applyAction(actionPayload) {
-    if (!actionPayload || !actionPayload.tasks || !Array.isArray(actionPayload.tasks)) {
+  applyAction(actionPayload, targetTask = null) {
+    if (!actionPayload) return 0;
+
+    // 1. 更新聚焦事项 (update_current_task)
+    if (actionPayload.intent === 'update_current_task') {
+      const tid = actionPayload.taskId || (targetTask ? targetTask.id : null);
+      const it = state.items.find(x => x.id === tid) || targetTask;
+      if (it) {
+        if (actionPayload.title && actionPayload.title.trim()) {
+          it.title = actionPayload.title.trim();
+        }
+        if (actionPayload.note !== undefined && actionPayload.note.trim()) {
+          it.note = actionPayload.note.trim();
+        }
+        if (Array.isArray(actionPayload.subtasks)) {
+          it.subtasks = actionPayload.subtasks.map(s => createSubtask(s));
+        }
+        saveState();
+        emit('items-changed', state.items);
+        return 1;
+      }
+    }
+
+    // 2. 批量新建或拆解任务
+    if (!actionPayload.tasks || !Array.isArray(actionPayload.tasks)) {
       return 0;
     }
 
@@ -164,7 +201,7 @@ class AIAgent {
         cost: t.cost,
         due: t.due,
         star: t.star || 0,
-        subtasks: Array.isArray(t.subtasks) ? t.subtasks.map(s => createSubtask(typeof s === 'string' ? s : s.title)) : []
+        subtasks: Array.isArray(t.subtasks) ? t.subtasks.map(s => createSubtask(s)) : []
       });
 
       // 放置到该分类顶部
@@ -186,10 +223,16 @@ class AIAgent {
     this.isGenerating = false;
   }
 
-  clearHistory() {
-    state.chatHistory = [];
-    saveState();
-    emit('chat-updated', state.chatHistory);
+  clearHistory(targetTask = null) {
+    if (targetTask) {
+      targetTask.chatHistory = [];
+      saveState();
+      emit('task-chat-updated', { taskId: targetTask.id, history: [] });
+    } else {
+      state.chatHistory = [];
+      saveState();
+      emit('chat-updated', state.chatHistory);
+    }
   }
 }
 
