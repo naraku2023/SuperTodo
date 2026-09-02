@@ -5,7 +5,7 @@
 
 import { state, loadState, saveState, on, applyColorMode, toggleColorMode } from './state.js';
 import { renderContent, escapeHtml } from './ui/list.js';
-import { buildStars, openAdd, openEdit, openSettings, openSort, openInfo, pushLayer, syncBack, closeTopLayer, onReady, showToast } from './ui/modals.js';
+import { buildStars, openAdd, openEdit, openSettings, openSort, openInfo, pushLayer, syncBack, closeTopLayer, onReady, showToast, confirmDlg } from './ui/modals.js';
 import { openDetail } from './ui/detail.js';
 import { ChatDrawer } from './ui/chat-drawer.js';
 
@@ -100,16 +100,36 @@ function backHome() {
 function toggleDone(id) {
   const it = state.items.find(x => x.id === id);
   if (!it) return;
-  it.done = !it.done;
-  if (it.done) {
-    it.completedAt = Date.now();
-    showToast('已完成并移至“已归档”');
+
+  if (!it.done) {
+    // 事项完结时弹窗确认以防误触
+    confirmDlg(
+      '标记完成',
+      `确定将“${it.title}”标记为已完成并移入归档吗？`,
+      () => {
+        it.done = true;
+        it.completedAt = Date.now();
+        saveState();
+        render();
+        showToast('已完成并移至“已归档”');
+      },
+      '确认完成'
+    );
   } else {
-    it.completedAt = null;
-    showToast('已恢复至待办清单');
+    // 已完结事项恢复时弹窗确认
+    confirmDlg(
+      '恢复待办',
+      `确定将“${it.title}”从已归档恢复为待办事项吗？`,
+      () => {
+        it.done = false;
+        it.completedAt = null;
+        saveState();
+        render();
+        showToast('已恢复至待办清单');
+      },
+      '确认恢复'
+    );
   }
-  saveState();
-  render();
 }
 
 // 汉堡抽屉开关

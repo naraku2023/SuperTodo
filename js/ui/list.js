@@ -41,6 +41,32 @@ export function fmtDue(dateStr) {
 }
 
 /**
+ * 格式化已归档任务的完成时间
+ */
+export function formatCompletedTime(ts) {
+  if (!ts) return '已完结';
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return '已完结';
+
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+
+  const now = new Date();
+  const isToday = now.getFullYear() === y && now.getMonth() === d.getMonth() && now.getDate() === d.getDate();
+  if (isToday) {
+    return `今天 ${hh}:${mm} 完成`;
+  }
+  const isThisYear = now.getFullYear() === y;
+  if (isThisYear) {
+    return `${m}-${day} ${hh}:${mm} 完成`;
+  }
+  return `${y}-${m}-${day} ${hh}:${mm} 完成`;
+}
+
+/**
  * 过滤当前分类及搜索结果（已完成事项统一独立归入已归档专区）
  */
 export function currentItems() {
@@ -109,20 +135,26 @@ export function renderContent() {
   let html = '';
 
   if (isArchiveMode) {
-    // 专门的独立已归档中心视图
+    // 已归档事项严格按完成时间倒序排好（最近完成的排在最前面）
+    const sortedArchived = allItems.slice().sort((a, b) => {
+      const timeA = a.completedAt || a.updated || a.created || 0;
+      const timeB = b.completedAt || b.updated || b.created || 0;
+      return timeB - timeA;
+    });
+
     html += `
       <div class="archive-header-card">
         <div class="archive-header-left">
           <span class="archive-header-icon">📦</span>
           <div class="archive-header-text">
-            <span class="archive-header-title">已归档清单 (${allItems.length})</span>
-            <span class="archive-header-desc">已完结事项保存在此，点击左侧圆圈可随时恢复</span>
+            <span class="archive-header-title">已归档清单 (${sortedArchived.length})</span>
+            <span class="archive-header-desc">按完成时间排序 · 点击左侧圆圈恢复至待办</span>
           </div>
         </div>
-        ${allItems.length > 0 ? `<button type="button" class="btn-clear-archive" id="clearArchiveBtn">清空归档</button>` : ''}
+        ${sortedArchived.length > 0 ? `<button type="button" class="btn-clear-archive" id="clearArchiveBtn">清空归档</button>` : ''}
       </div>
       <div class="task-list archive-task-list" id="archiveList">
-        ${allItems.map(it => renderTaskCard(it, false)).join('')}
+        ${sortedArchived.map(it => renderTaskCard(it, false)).join('')}
       </div>
     `;
   } else {
@@ -162,6 +194,12 @@ function renderTaskCard(it, isUndone) {
         <span class="due-icon">📅</span> ${fmtDue(it.due)}
       </span>
     `;
+  }
+
+  // 完成时间徽标（已归档事项标注好完成时间）
+  let completedBadge = '';
+  if (it.done) {
+    completedBadge = `<span class="card-completed-badge">${formatCompletedTime(it.completedAt || it.updated || it.created)}</span>`;
   }
 
   // 分类定制徽标
@@ -208,7 +246,7 @@ function renderTaskCard(it, isUndone) {
 
   return `
     <div class="clean-task-card ${it.done ? 'is-done' : ''}" data-task-id="${it.id}">
-      <!-- 左侧打勾圆圈：点击仅切换整体完成状态 -->
+      <!-- 左侧打勾圆圈：点击切换整体完成状态（弹窗防误触） -->
       <div class="task-chk-btn" data-action="toggle-done" data-id="${it.id}" aria-label="标记完成">
         <span class="chk-circle ${it.done ? 'checked' : ''}"></span>
       </div>
@@ -219,6 +257,7 @@ function renderTaskCard(it, isUndone) {
           <span class="task-title-text ${it.done ? 'done' : ''}">${escapeHtml(it.title)}</span>
           ${categoryBadge}
           ${dueBadge}
+          ${completedBadge}
         </div>
         ${notePreview}
         ${subtasksProgress}

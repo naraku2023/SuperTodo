@@ -8,7 +8,7 @@
 
 import { state, saveState, emit } from '../state.js';
 import { calculateProgress, createSubtask, groupSubtasksByStage } from '../models.js';
-import { openEdit, pushLayer, syncBack } from './modals.js';
+import { openEdit, pushLayer, syncBack, confirmDlg, showToast } from './modals.js';
 import { escapeHtml, fmtDue, isOverdue } from './list.js';
 
 let currentTask = null;
@@ -86,11 +86,16 @@ export function renderDetailContent() {
   // 5. 渲染宽大舒适的执行指南与详细说明
   renderGuideSection();
 
-  // 6. 创建时间与底部信息
+  // 6. 创建时间与完成时间底部信息
   const createTimeEl = $('#detailCreateTime');
   if (createTimeEl && t.created) {
     const d = new Date(t.created);
-    createTimeEl.textContent = `创建于 ${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    let txt = `创建于 ${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    if (t.done) {
+      const cd = new Date(t.completedAt || t.updated || t.created);
+      txt += ` · ✓ 完成于 ${cd.getFullYear()}/${cd.getMonth() + 1}/${cd.getDate()} ${String(cd.getHours()).padStart(2, '0')}:${String(cd.getMinutes()).padStart(2, '0')}`;
+    }
+    createTimeEl.textContent = txt;
   }
 }
 
@@ -115,6 +120,13 @@ function renderCategoryTemplate(t) {
         📅 ${fmtDue(t.due)} 截止
       </span>
     `;
+  }
+
+  // 已归档完成时间标签
+  if (t.done) {
+    const cd = new Date(t.completedAt || t.updated || t.created);
+    const timeStr = `${cd.getFullYear()}-${String(cd.getMonth() + 1).padStart(2, '0')}-${String(cd.getDate()).padStart(2, '0')} ${String(cd.getHours()).padStart(2, '0')}:${String(cd.getMinutes()).padStart(2, '0')}`;
+    html += `<span class="detail-tag tag-completed-status">✓ 已归档 (${timeStr} 完成)</span>`;
   }
 
   // 根据分类渲染专属模块
@@ -321,14 +333,41 @@ export function initDetailEvents() {
   $('#detailDoneBtn')?.addEventListener('click', closeDetail);
   $('#detailMask')?.addEventListener('click', closeDetail);
 
-  // 2. 主任务完成勾选
+  // 2. 主任务完成勾选（弹窗确认防误触）
   $('#detailMainChkWrap')?.addEventListener('click', (e) => {
     e.stopPropagation();
     if (!currentTask) return;
-    currentTask.done = !currentTask.done;
-    saveState();
-    renderDetailContent();
-    emit('items-changed', state.items);
+    saveCurrentInputs();
+
+    if (!currentTask.done) {
+      confirmDlg(
+        '完成事项确认',
+        `确定将“${currentTask.title}”标记为已完成并移入已归档吗？`,
+        () => {
+          currentTask.done = true;
+          currentTask.completedAt = Date.now();
+          saveState();
+          renderDetailContent();
+          emit('items-changed', state.items);
+          showToast('已完成并移至“已归档”');
+        },
+        '确认完成'
+      );
+    } else {
+      confirmDlg(
+        '恢复待办确认',
+        `确定将“${currentTask.title}”从已归档中恢复为未完成待办吗？`,
+        () => {
+          currentTask.done = false;
+          currentTask.completedAt = null;
+          saveState();
+          renderDetailContent();
+          emit('items-changed', state.items);
+          showToast('已恢复至待办清单');
+        },
+        '确认恢复'
+      );
+    }
   });
 
   // 3. 删除任务
@@ -374,17 +413,46 @@ export function initDetailEvents() {
       if (sub) {
         sub.done = !sub.done;
 
-        // 若所有步骤都完成，可联动主任务
+        // 若所有步骤都完成，可联动主任务（弹窗确认防误触）
         const { total, completed } = calculateProgress(currentTask.subtasks);
-        if (total > 0 && completed === total) {
-          currentTask.done = true;
-        } else if (currentTask.done && completed < total) {
-          currentTask.done = false;
-        }
+        if (total > 0 && completed === total && !currentTask.done) {
+          saveState();
+          renderDetailContent();
+          emit('items-changed', state.items);
 
-        saveState();
-        renderDetailContent();
-        emit('items-changed', state.items);
+          confirmDlg(
+            '全部步骤已达成',
+            `“${currentTask.title}”的所有细分步骤已全部完成，是否立即将整个事项标记为已完结并归档？`,
+            () => {
+              currentTask.done = true;
+              currentTask.completedAt = Date.now();
+              saveState();
+              renderDetailContent();
+              emit('items-changed', state.items);
+              showToast('已完成并移至“已归档”');
+            },
+            '完结并归档'
+          );
+          return;
+        } else if (currentTask.done && completed < total) {
+          confirmDlg(
+            '取消完结状态',
+            `检测到部分细分步骤被取消，是否将“${currentTask.title}”从已归档恢复为进行中的待办事项？`,
+            () => {
+              currentTask.done = false;
+              currentTask.completedAt = null;
+              saveState();
+              renderDetailContent();
+              emit('items-changed', state.items);
+              showToast('已恢复至待办清单');
+            },
+            '恢复为待办'
+          );
+        } else {
+          saveState();
+          renderDetailContent();
+          emit('items-changed', state.items);
+        }
       }
     }
   });
