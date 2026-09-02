@@ -30,7 +30,7 @@ export function openDetail(task) {
   if (sheet) sheet.hidden = false;
 }
 
-export function closeDetail() {
+export function closeDetail(suppressSync = false) {
   saveCurrentInputs();
   const mask = $('#detailMask');
   const sheet = $('#detailSheet');
@@ -38,8 +38,10 @@ export function closeDetail() {
   if (sheet) sheet.hidden = true;
   currentTask = null;
   isEditingNote = false;
-  syncBack();
+  if (!suppressSync) syncBack();
 }
+
+window.closeDetailSheet = (suppress = false) => closeDetail(suppress);
 
 function saveCurrentInputs() {
   if (!currentTask) return;

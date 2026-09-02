@@ -63,17 +63,19 @@ function updateAppTitle() {
   const sortBtn = $('#appbarSortBtn');
   const gb = $('#homeGroupby');
 
-  if (state.view.name === 'home') {
-    if (t) t.textContent = state.type === '全部' ? '全部待办' : state.type;
+  const isHome = (state.view.name === 'home' && state.type === '全部');
+
+  if (isHome) {
+    if (t) t.textContent = '全部待办';
     if (back) back.hidden = true;
     if (ham) ham.hidden = false;
-    if (sortBtn) sortBtn.hidden = state.type === '已归档';
+    if (sortBtn) sortBtn.hidden = false;
     if (gb) gb.hidden = true;
   } else {
-    if (t) t.textContent = state.view.group || '分组详情';
+    if (t) t.textContent = state.view.name !== 'home' ? (state.view.group || '分组详情') : state.type;
     if (back) back.hidden = false;
     if (ham) ham.hidden = true;
-    if (sortBtn) sortBtn.hidden = false;
+    if (sortBtn) sortBtn.hidden = state.type === '已归档';
     if (gb) gb.hidden = true;
   }
 }
@@ -93,9 +95,55 @@ function enterGroup(key) {
 
 function backHome() {
   state.view = { name: 'home' };
+  state.type = '全部';
   state.sortKey = '默认';
+  state.search = '';
+  saveState();
   render();
 }
+
+let lastBackTs = 0;
+export function handleGlobalBack() {
+  const now = Date.now();
+  if (now - lastBackTs < 220) return true; // 防抖保护
+  lastBackTs = now;
+
+  // 1. 若有顶层浮层（详情页、AI 对话抽屉、汉堡菜单、确认弹窗、设置/关于等），优先关闭浮层
+  const closed = closeTopLayer();
+  if (closed) {
+    return true;
+  }
+
+  // 2. 如果当前处于搜索模式，关闭搜索栏并退出搜索
+  const searchbar = $('#searchbar');
+  if ((searchbar && !searchbar.hidden) || state.search) {
+    if (searchbar) searchbar.hidden = true;
+    const topBar = $('.appbar-top');
+    if (topBar) topBar.hidden = false;
+    state.search = '';
+    const sInput = $('#searchInput');
+    if (sInput) sInput.value = '';
+    saveState();
+    render();
+    return true;
+  }
+
+  // 3. 如果当前处于非“软件主页”（比如处于已归档、购物、计划、旅游、愿望或分组详情页）
+  const isHomePage = (state.view.name === 'home' && state.type === '全部');
+  if (!isHomePage) {
+    // 从已归档或者购物等其他非详情页的页面返回时，返回软件主页
+    backHome();
+    return true;
+  }
+
+  // 4. 当从软件主页再返回时，退出到系统桌面
+  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
+    window.Capacitor.Plugins.App.exitApp();
+  }
+  return false;
+}
+
+window.handleGlobalBack = handleGlobalBack;
 
 function toggleDone(id) {
   const it = state.items.find(x => x.id === id);
@@ -164,16 +212,7 @@ async function init() {
   // 绑定原生 Android 物理返回键（通过 Capacitor App 插件检测）
   if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
     window.Capacitor.Plugins.App.addListener('backButton', () => {
-      const closed = closeTopLayer();
-      if (!closed) {
-        // 如果顶层无任何遮罩且处于二级页面，则返回首页
-        if (state.view.name !== 'home') {
-          backHome();
-        } else {
-          // 首页再次按返回退出应用
-          window.Capacitor.Plugins.App.exitApp();
-        }
-      }
+      handleGlobalBack();
     });
   }
 }
@@ -187,8 +226,7 @@ onReady(() => {
   $('#drawerClose')?.addEventListener('click', closeDrawer);
   $('#drawerMask')?.addEventListener('click', closeDrawer);
   $('#backBtn')?.addEventListener('click', () => {
-    backHome();
-    syncBack();
+    handleGlobalBack();
   });
 
   // 汉堡抽屉点击选择类型

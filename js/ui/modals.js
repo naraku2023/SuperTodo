@@ -52,9 +52,13 @@ export function closeTopLayer() {
   backSuppress = true;
   const detailSheet = $('#detailSheet');
   if (detailSheet && !detailSheet.hidden) {
-    detailSheet.hidden = true;
-    const dm = $('#detailMask');
-    if (dm) dm.hidden = true;
+    if (window.closeDetailSheet) {
+      window.closeDetailSheet(true);
+    } else {
+      detailSheet.hidden = true;
+      const dm = $('#detailMask');
+      if (dm) dm.hidden = true;
+    }
     backSuppress = false;
     return true;
   }
@@ -84,7 +88,11 @@ window.addEventListener('popstate', () => {
     codeBack = false;
     return;
   }
-  closeTopLayer();
+  if (window.handleGlobalBack) {
+    window.handleGlobalBack();
+  } else {
+    closeTopLayer();
+  }
 });
 
 // ================= 通用对话框 (Alert / Confirm / Prompt) =================
