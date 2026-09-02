@@ -18,3 +18,12 @@ PROJECT_OVERVIEW.md
 PROJECT_STATUS.md
 requirements.md
 SIGNING_REPORT.md
+
+# 本地 Capacitor 与构建产物
+android/
+dist/
+node_modules/
+package.json
+package-lock.json
+capacitor.config.json
+build_apk.py
