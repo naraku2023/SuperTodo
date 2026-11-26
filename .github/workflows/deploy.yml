@@ -44,40 +44,85 @@ jobs:
           npx cap init "超级清单" com.dax.supertodo --web-dir dist
           npx cap add android
           npx cap sync android
-      - name: 内置下载（原生 DownloadManager，不跳浏览器）
+      - name: 注入原生下载、定时提醒与小米桌面小组件
         run: |
-          MAIN=$(find android/app/src/main/java -name "MainActivity.java" | head -1)
-          cat > "$MAIN" <<'JAVAEOF'
-          package com.dax.supertodo;
+          JAVA_DST="android/app/src/main/java/com/dax/supertodo"
+          RES_DST="android/app/src/main/res"
+          mkdir -p "$JAVA_DST" "$RES_DST"
+          cp -r native-android/java/com/dax/supertodo/*.java "$JAVA_DST/"
+          cp -r native-android/res/* "$RES_DST/"
+          python3 - <<'PYEOF'
+          import xml.etree.ElementTree as ET
 
-          import android.app.DownloadManager;
-          import android.net.Uri;
-          import android.os.Bundle;
-          import android.webkit.DownloadListener;
-          import com.getcapacitor.BridgeActivity;
+          manifest_path = 'android/app/src/main/AndroidManifest.xml'
+          ANDROID_NS = 'http://schemas.android.com/apk/res/android'
+          ET.register_namespace('android', ANDROID_NS)
+          tree = ET.parse(manifest_path)
+          root = tree.getroot()
 
-          public class MainActivity extends BridgeActivity {
-              @Override
-              public void onCreate(Bundle savedInstanceState) {
-                  super.onCreate(savedInstanceState);
-                  try {
-                      if (getBridge() != null && getBridge().getWebView() != null) {
-                          getBridge().getWebView().setDownloadListener(new DownloadListener() {
-                              @Override
-                              public void onDownloadStart(String url, String userAgent, String contentDisposition, String mimeType, long contentLength) {
-                                  try {
-                                      DownloadManager.Request req = new DownloadManager.Request(Uri.parse(url));
-                                      req.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-                                      req.setTitle("SuperTodo 更新");
-                                      ((DownloadManager) getSystemService(DOWNLOAD_SERVICE)).enqueue(req);
-                                  } catch (Exception ignore) {}
-                              }
-                          });
-                      }
-                  } catch (Exception ignore) {}
-              }
+          existing_perms = {
+              el.get(f'{{{ANDROID_NS}}}name')
+              for el in root.findall('uses-permission')
           }
-          JAVAEOF
+          for perm in [
+              'android.permission.POST_NOTIFICATIONS',
+              'android.permission.SCHEDULE_EXACT_ALARM',
+              'android.permission.RECEIVE_BOOT_COMPLETED',
+              'android.permission.VIBRATE',
+          ]:
+              if perm not in existing_perms:
+                  p_el = ET.Element('uses-permission')
+                  p_el.set(f'{{{ANDROID_NS}}}name', perm)
+                  root.insert(0, p_el)
+
+          app = root.find('application')
+          for act in app.findall('activity'):
+              name = act.get(f'{{{ANDROID_NS}}}name', '')
+              if name.endswith('MainActivity'):
+                  act.set(f'{{{ANDROID_NS}}}launchMode', 'singleTop')
+
+          existing_receivers = {
+              el.get(f'{{{ANDROID_NS}}}name')
+              for el in app.findall('receiver')
+          }
+
+          if '.ReminderReceiver' not in existing_receivers and 'com.dax.supertodo.ReminderReceiver' not in existing_receivers:
+              rec = ET.SubElement(app, 'receiver')
+              rec.set(f'{{{ANDROID_NS}}}name', '.ReminderReceiver')
+              rec.set(f'{{{ANDROID_NS}}}exported', 'true')
+              flt = ET.SubElement(rec, 'intent-filter')
+              for act in [
+                  'android.intent.action.BOOT_COMPLETED',
+                  'android.intent.action.TIME_SET',
+                  'android.intent.action.TIMEZONE_CHANGED',
+                  'com.dax.supertodo.ACTION_MORNING_BRIEFING',
+                  'com.dax.supertodo.ACTION_EVENING_REVIEW',
+                  'com.dax.supertodo.ACTION_TASK_REMINDER',
+              ]:
+                  a_el = ET.SubElement(flt, 'action')
+                  a_el.set(f'{{{ANDROID_NS}}}name', act)
+
+          if '.SuperTodoWidgetProvider' not in existing_receivers and 'com.dax.supertodo.SuperTodoWidgetProvider' not in existing_receivers:
+              wrec = ET.SubElement(app, 'receiver')
+              wrec.set(f'{{{ANDROID_NS}}}name', '.SuperTodoWidgetProvider')
+              wrec.set(f'{{{ANDROID_NS}}}exported', 'true')
+              wrec.set(f'{{{ANDROID_NS}}}label', '超级清单 · 今日待办')
+              wflt = ET.SubElement(wrec, 'intent-filter')
+              for act in [
+                  'android.appwidget.action.APPWIDGET_UPDATE',
+                  'com.dax.supertodo.WIDGET_TOGGLE_TASK',
+                  'com.dax.supertodo.WIDGET_REFRESH',
+                  'android.intent.action.DATE_CHANGED',
+              ]:
+                  a_el = ET.SubElement(wflt, 'action')
+                  a_el.set(f'{{{ANDROID_NS}}}name', act)
+              meta = ET.SubElement(wrec, 'meta-data')
+              meta.set(f'{{{ANDROID_NS}}}name', 'android.appwidget.provider')
+              meta.set(f'{{{ANDROID_NS}}}resource', '@xml/supertodo_widget_info')
+
+          tree.write(manifest_path, encoding='utf-8', xml_declaration=True)
+          print('AndroidManifest.xml 已成功注入提醒接收器与 4x2 桌面小组件')
+          PYEOF
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

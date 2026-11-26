@@ -548,9 +548,9 @@ function openSettings(){
 function closeSettings(){ $('#setMask').hidden=true; $('#setModal').hidden=true; if(!backSuppress)syncBack(); }
 
 /* ========== 软件信息 ========== */
-const APP_VERSION='v1.7.9';
-const REPO_URL='https://github.com/PaidaxingTuT/SuperTodo';
-const REPO_API='https://api.github.com/repos/PaidaxingTuT/SuperTodo';
+const APP_VERSION='v1.8.0';
+const REPO_URL='https://github.com/naraku2023/SuperTodo';
+const REPO_API='https://api.github.com/repos/naraku2023/SuperTodo';
 function openInfo(){ pushLayer(); $('#infoUpdate').textContent='点击检查'; $('#infoVer').textContent='SuperTodo · 版本 '+APP_VERSION.replace(/^v/,''); $('#infoMask').hidden=false; $('#infoModal').hidden=false; }
 function closeInfo(){ $('#infoMask').hidden=true; $('#infoModal').hidden=true; if(!backSuppress)syncBack(); }
 function verGt(a,b){

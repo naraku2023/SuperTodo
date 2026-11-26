@@ -59,12 +59,15 @@ export function toggleSubtask(taskId, subtaskId) {
 
   sub.done = !sub.done;
 
-  // 如果所有子任务都完成，可以建议或联动主任务
   const { total, completed } = calculateProgress(task.subtasks);
   if (total > 0 && completed === total) {
     task.done = true;
+    task.status = 'done';
+    task.completedAt = Date.now();
   } else if (task.done && completed < total) {
     task.done = false;
+    task.status = 'in_progress';
+    task.completedAt = null;
   }
 
   saveState();
@@ -72,13 +75,13 @@ export function toggleSubtask(taskId, subtaskId) {
 }
 
 /**
- * 在编辑弹窗中渲染子任务列表与动态输入项
+ * 在新建/编辑弹窗中渲染子任务编辑器（支持阶段名 + 单步截止日期 + 标题）
  */
 export function renderModalSubtasksEditor(container, subtasks = []) {
   container.innerHTML = `
     <div class="modal-subtasks-editor">
       <div class="subtasks-edit-header">
-        <label class="fld-label">执行步骤清单 (Checklist)</label>
+        <label class="fld-label" style="margin:0">阶段与执行步骤</label>
         <button type="button" class="btn-line btn-sm" id="btnAddSubtaskItem">+ 增加步骤</button>
       </div>
       <div class="subtasks-edit-rows" id="subtasksEditRows"></div>
@@ -87,15 +90,21 @@ export function renderModalSubtasksEditor(container, subtasks = []) {
 
   const rowsWrap = container.querySelector('#subtasksEditRows');
   const renderRows = (items) => {
+    if (!items.length) {
+      rowsWrap.innerHTML = '<div class="subtask-edit-empty">暂无步骤，点击右上角「+ 增加步骤」拆解具体动作</div>';
+      return;
+    }
+
     rowsWrap.innerHTML = items.map((st, idx) => `
       <div class="subtask-edit-row" data-index="${idx}">
         <span class="subtask-edit-num">${idx + 1}.</span>
-        <input type="text" class="subtask-edit-input" value="${escapeHtml(st.title)}" placeholder="步骤描述...">
+        <input type="text" class="subtask-edit-stage" value="${escapeHtml(st.stage || '')}" placeholder="阶段(可选)">
+        <input type="text" class="subtask-edit-input" value="${escapeHtml(st.title || '')}" placeholder="步骤动作描述...">
+        <input type="date" class="subtask-edit-due" value="${escapeHtml(st.due || '')}" title="单步截止日期">
         <button type="button" class="subtask-edit-del" aria-label="删除步骤">✕</button>
       </div>
     `).join('');
 
-    // 绑定删除事件
     rowsWrap.querySelectorAll('.subtask-edit-del').forEach((btn, idx) => {
       btn.onclick = () => {
         subtasks.splice(idx, 1);
@@ -103,10 +112,21 @@ export function renderModalSubtasksEditor(container, subtasks = []) {
       };
     });
 
-    // 绑定输入改变
+    rowsWrap.querySelectorAll('.subtask-edit-stage').forEach((input, idx) => {
+      input.oninput = (e) => {
+        subtasks[idx].stage = e.target.value.trim();
+      };
+    });
+
     rowsWrap.querySelectorAll('.subtask-edit-input').forEach((input, idx) => {
       input.oninput = (e) => {
         subtasks[idx].title = e.target.value;
+      };
+    });
+
+    rowsWrap.querySelectorAll('.subtask-edit-due').forEach((input, idx) => {
+      input.onchange = (e) => {
+        subtasks[idx].due = e.target.value;
       };
     });
   };
@@ -114,9 +134,9 @@ export function renderModalSubtasksEditor(container, subtasks = []) {
   renderRows(subtasks);
 
   container.querySelector('#btnAddSubtaskItem').onclick = () => {
-    subtasks.push(createSubtask(''));
+    const lastStage = subtasks.length ? (subtasks[subtasks.length - 1].stage || '') : '';
+    subtasks.push(createSubtask({ title: '', stage: lastStage }));
     renderRows(subtasks);
-    // 聚焦到新增加的输入框
     const inputs = rowsWrap.querySelectorAll('.subtask-edit-input');
     if (inputs.length) inputs[inputs.length - 1].focus();
   };

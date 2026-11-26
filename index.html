@@ -17,7 +17,7 @@ try{const d=JSON.parse(localStorage.getItem('listapp.data.v2')),m=d&&d.colorMode
 </head>
 <body>
 
-<!-- ===== 侧边汉堡抽屉（类型） ===== -->
+<!-- ===== 侧边汉堡抽屉（智能日程视图 + 项目空间 + 多维标签 + 独立会话中心） ===== -->
 <div class="drawer-mask" id="drawerMask" hidden></div>
 <aside class="drawer" id="drawer" hidden>
   <header class="drawer-head">
@@ -40,23 +40,36 @@ try{const d=JSON.parse(localStorage.getItem('listapp.data.v2')),m=d&&d.colorMode
   <div class="appbar-top">
     <button class="iconbtn" id="backBtn" aria-label="返回" hidden><span class="ic"></span></button>
     <button class="iconbtn" id="hamburger" aria-label="菜单"><span class="ic"></span></button>
-    <h1 class="app-title" id="appTitle">全部</h1>
+    <h1 class="app-title" id="appTitle">全部待办</h1>
     <div class="appbar-spacer"></div>
     <button class="iconbtn" id="searchBtn" aria-label="搜索"><span class="ic"></span></button>
-    <button class="iconbtn" id="appbarSortBtn" aria-label="排序" hidden><span class="ic"></span></button>
+    <button class="iconbtn" id="appbarSortBtn" aria-label="排序"><span class="ic"></span></button>
   </div>
   <div class="searchbar" id="searchbar" hidden>
     <button class="iconbtn dark" id="searchBackBtn" aria-label="关闭"><span class="ic"></span></button>
-    <input type="search" id="searchInput" placeholder="搜索事项" autocomplete="off">
+    <input type="search" id="searchInput" placeholder="搜索事项、标签、步骤或备注..." autocomplete="off">
   </div>
 </header>
 
-<!-- ===== 首页分组方式（按场景 / 按时间） ===== -->
-<div class="home-groupby" id="homeGroupby" hidden>
-  <div class="db-seg" id="groupBySeg">
-    <button class="seg" data-gb="scene">按场景</button>
-    <button class="seg" data-gb="time">按时间</button>
+<!-- ===== 顶部智能视图快捷条 & 分组/状态筛选栏 ===== -->
+<section class="home-toolbar" id="homeToolbar">
+  <div class="smart-pills-row" id="smartPillsRow"></div>
+  <div class="view-filter-row" id="viewFilterRow">
+    <div class="vf-group-wrap" id="groupByPills"></div>
+    <div class="vf-status-wrap" id="statusFilterSelectWrap">
+      <select id="statusFilterSelect" class="vf-status-select" aria-label="按执行状态筛选">
+        <option value="all">全部状态</option>
+        <option value="todo">待启动</option>
+        <option value="in_progress">进行中</option>
+        <option value="blocked">阻塞等待</option>
+      </select>
+    </div>
   </div>
+</section>
+
+<!-- ===== 首页醒目逾期 / 今日聚焦提醒横幅 ===== -->
+<div class="alert-banner-wrap" id="alertBannerWrap" hidden>
+  <div class="alert-banner" id="alertBanner"></div>
 </div>
 
 <!-- ===== 主内容区 ===== -->
@@ -66,62 +79,132 @@ try{const d=JSON.parse(localStorage.getItem('listapp.data.v2')),m=d&&d.colorMode
 <div class="empty" id="emptyState" hidden>
   <div class="empty-icon"></div>
   <p class="empty-title" id="emptyTitle">暂无事项</p>
-  <p class="empty-sub" id="emptySub">点击右下角的 + 添加</p>
+  <p class="empty-sub" id="emptySub">点击右下角的 + 添加，或使用 AI 规划</p>
 </div>
 
-<!-- ===== 事项编辑弹窗（居中，保证不超出屏幕） ===== -->
+<!-- ===== 事项新建 / 编辑弹窗 ===== -->
 <div class="modal-mask" id="modalMask" hidden></div>
-<div class="modal" id="modal" hidden>
+<div class="modal modal-lg" id="modal" hidden>
   <div class="modal-head">
     <h2 id="modalTitle">新建事项</h2>
     <button class="md-close" id="modalClose" aria-label="关闭"></button>
   </div>
   <div class="modal-body" id="modalBody">
     <label class="fld">
-      <input type="text" id="fTitle" placeholder="输入你想做的事..." autocomplete="off">
+      <input type="text" id="fTitle" placeholder="输入你想完成的事项..." autocomplete="off">
     </label>
-    <div class="ai-sugbox" id="aiSuggestBox" hidden></div>
 
-    <div class="fld">
-      <label class="fld-label">截止日期</label>
-      <div class="quick-due-row">
-        <button type="button" class="qdue-btn" data-days="0">今天</button>
-        <button type="button" class="qdue-btn" data-days="1">明天</button>
-        <button type="button" class="qdue-btn" data-days="7">下周</button>
-        <button type="button" class="qdue-btn" data-clear="1">清除</button>
-        <input type="date" id="fDue" class="qdue-input">
+    <!-- 归属项目空间 + 优先级 + 状态（核心安排直接外显） -->
+    <div class="modal-grid-2">
+      <div class="fld">
+        <label class="fld-label">所属项目空间</label>
+        <div class="select-with-add">
+          <select id="fProject" class="fld-select"></select>
+          <button type="button" class="btn-mini-add" id="fAddProjectBtn" title="新建项目空间">＋</button>
+        </div>
+      </div>
+      <div class="fld">
+        <label class="fld-label">执行状态</label>
+        <select id="fStatus" class="fld-select">
+          <option value="todo">○ 待启动</option>
+          <option value="in_progress">◔ 进行中</option>
+          <option value="blocked">⏸ 阻塞等待</option>
+        </select>
       </div>
     </div>
 
+    <div class="fld">
+      <label class="fld-label">优先级</label>
+      <div class="segbg" id="fPrioritySeg"></div>
+    </div>
+
+    <!-- 完整时间排期 -->
+    <div class="fld schedule-box">
+      <label class="fld-label">时间排期与周期</label>
+      <div class="quick-due-row">
+        <button type="button" class="qdue-btn" data-days="0">今天</button>
+        <button type="button" class="qdue-btn" data-days="1">明天</button>
+        <button type="button" class="qdue-btn" data-weekend="1">本周末</button>
+        <button type="button" class="qdue-btn" data-days="7">下周</button>
+        <button type="button" class="qdue-btn" data-clear="1">清除</button>
+      </div>
+      <div class="modal-grid-2 sched-date-grid">
+        <div>
+          <span class="sub-fld-lbl">开始日期</span>
+          <input type="date" id="fStartDate" class="qdue-input full">
+        </div>
+        <div>
+          <span class="sub-fld-lbl">截止日期</span>
+          <input type="date" id="fDue" class="qdue-input full">
+        </div>
+      </div>
+      <div class="modal-grid-3 sched-time-grid">
+        <div>
+          <span class="sub-fld-lbl">开始时段</span>
+          <input type="time" id="fStartTime" class="qdue-input full">
+        </div>
+        <div>
+          <span class="sub-fld-lbl">结束时段</span>
+          <input type="time" id="fEndTime" class="qdue-input full">
+        </div>
+        <div>
+          <span class="sub-fld-lbl">重复周期</span>
+          <select id="fRepeat" class="fld-select compact">
+            <option value="none">不重复</option>
+            <option value="daily">每天</option>
+            <option value="weekdays">工作日</option>
+            <option value="weekly">每周</option>
+            <option value="monthly">每月</option>
+          </select>
+        </div>
+      </div>
+      <div class="dur-quick-row">
+        <span class="sub-fld-lbl">预计耗时(分钟)：</span>
+        <input type="number" id="fDuration" class="dur-input" placeholder="如 45" min="1" step="5" inputmode="numeric">
+        <button type="button" class="qdur-btn" data-min="15">15m</button>
+        <button type="button" class="qdur-btn" data-min="30">30m</button>
+        <button type="button" class="qdur-btn" data-min="60">1h</button>
+        <button type="button" class="qdur-btn" data-min="120">2h</button>
+      </div>
+    </div>
+
+    <!-- 多标签选择 -->
+    <div class="fld">
+      <label class="fld-label">多维标签（可多选）</label>
+      <div class="segbg" id="fTagsSeg"></div>
+    </div>
+
+    <!-- 执行步骤编辑器 -->
     <div id="modalSubtasksWrap"></div>
 
-    <label class="fld">
-      <input type="text" id="fNote" placeholder="备注（可选）" autocomplete="off">
-    </label>
+    <!-- 详细说明与备注 -->
+    <div class="fld">
+      <label class="fld-label">执行指南 / 备注</label>
+      <textarea id="fNote" class="fld-textarea" rows="3" placeholder="输入背景说明、执行策略或注意事项（可选）..."></textarea>
+    </div>
 
-    <!-- 高级扩展选项（默认完全折叠隐藏，不干扰极简体验） -->
+    <!-- 更多扩展选项 -->
     <details class="more-options-details" id="moreOptionsDetails">
-      <summary class="more-options-summary">更多选项（分类、场景、花费...）</summary>
+      <summary class="more-options-summary">更多扩展属性（预算花费、模板类型、心愿星级）</summary>
       <div class="more-options-body">
         <div class="fld">
-          <label class="fld-label">类型</label>
-          <div class="segbg" id="fTypeSeg"></div>
-        </div>
-        <div class="fld">
-          <label class="fld-label">场景</label>
-          <div class="segbg" id="fSceneSeg"></div>
-        </div>
-        <div class="fld">
-          <label class="fld-label">时间维度</label>
-          <div class="segbg" id="fTimeSeg"></div>
+          <label class="fld-label">事项结构化模板</label>
+          <select id="fTemplate" class="fld-select">
+            <option value="">跟随所属项目默认模板</option>
+            <option value="general">通用待办</option>
+            <option value="plan">计划与里程碑</option>
+            <option value="shopping">购物与预算</option>
+            <option value="travel">旅行与行程</option>
+            <option value="wish">心愿与储蓄</option>
+          </select>
         </div>
         <div class="fld fif">
           <div class="fld-in">
-            <label class="fld-label">预估花费 ¥</label>
+            <label class="fld-label">预算 / 花费 ¥</label>
             <input type="number" id="fCost" placeholder="0" min="0" step="any" inputmode="decimal">
           </div>
           <div class="fld-in">
-            <label class="fld-label">重要程度</label>
+            <label class="fld-label">心愿/重要星级</label>
             <div class="stars" id="fStars"></div>
           </div>
         </div>
@@ -136,7 +219,7 @@ try{const d=JSON.parse(localStorage.getItem('listapp.data.v2')),m=d&&d.colorMode
   </div>
 </div>
 
-<!-- ===== 任务详情页 (Task Detail Sheet) ===== -->
+<!-- ===== 任务详情与工作台 (Task Detail Sheet：安排与清单 + 专属独立会话) ===== -->
 <div class="modal-mask" id="detailMask" hidden></div>
 <div class="detail-sheet" id="detailSheet" hidden>
   <div class="detail-head">
@@ -146,26 +229,27 @@ try{const d=JSON.parse(localStorage.getItem('listapp.data.v2')),m=d&&d.colorMode
       </svg>
       <span>返回</span>
     </button>
+    <div class="detail-tabs" id="detailTabs">
+      <button type="button" class="detail-tab on" data-tab="plan">📋 安排与清单</button>
+      <button type="button" class="detail-tab" data-tab="chat">💬 专属会话 <span class="tab-badge" id="detailChatBadge" hidden>0</span></button>
+    </div>
     <div class="detail-head-actions">
-      <button type="button" class="detail-action-icon ai-btn-icon" id="detailAiBtn" title="AI专属顾问">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-          <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/>
-        </svg>
-      </button>
       <button type="button" class="detail-action-icon danger" id="detailDelete" title="删除事项">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
           <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
         </svg>
       </button>
-      <button type="button" class="detail-action-icon" id="detailEdit" title="修改属性">
+      <button type="button" class="detail-action-icon" id="detailEdit" title="编辑完整属性">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
           <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
         </svg>
       </button>
     </div>
   </div>
-  <div class="detail-body" id="detailBody">
-    <!-- 主任务标题与快速完成打勾 -->
+
+  <!-- Tab 1: 安排与清单 -->
+  <div class="detail-body" id="detailPlanPane">
+    <!-- 主任务标题与完成打勾 -->
     <div class="detail-title-card">
       <div class="detail-chk-wrap" id="detailMainChkWrap" title="标记整体完成">
         <span class="chk-circle" id="detailMainChkCircle"></span>
@@ -175,103 +259,157 @@ try{const d=JSON.parse(localStorage.getItem('listapp.data.v2')),m=d&&d.colorMode
       </div>
     </div>
 
-    <!-- 标签胶囊栏 (截止日期、分类等) -->
-    <div class="detail-meta-bar" id="detailMetaBar"></div>
+    <!-- 行内快捷排期与属性控制面板 -->
+    <div class="detail-schedule-panel" id="detailSchedulePanel"></div>
 
-    <!-- 事项专属 AI 规划顾问入口卡片 -->
+    <!-- 专属会话快捷提示条（一键切到 Tab 2） -->
     <div class="detail-ai-copilot-card" id="detailOpenAiBtn">
       <div class="copilot-card-left">
-        <span class="copilot-icon">🤖</span>
+        <span class="copilot-icon">💬</span>
         <div class="copilot-text-wrap">
-          <div class="copilot-title">AI 事项专属顾问</div>
-          <div class="copilot-desc">点击与 AI 深度研讨此事项、细化阶段打卡步骤或生成避坑指南</div>
+          <div class="copilot-title">进入此事项的一对一独立会话</div>
+          <div class="copilot-desc" id="detailCopilotDesc">每个事项独立保存上下文记忆，随时细化阶段排期或生成专属清单</div>
         </div>
       </div>
-      <span class="copilot-arrow">💬 开始研讨 ›</span>
+      <span class="copilot-arrow">对话 ›</span>
     </div>
 
-    <!-- 核心：执行步骤清单（可一步步打勾完结） -->
-    <div class="detail-card-section">
+    <!-- 分类专属结构化工作区（购物明细表 / 旅游按天行程 / 心愿储蓄 / 计划目标） -->
+    <div id="detailTemplateWorkspace"></div>
+
+    <!-- 阶段与执行步骤清单（支持新建/改名阶段、单步排期备注、拖拽排序） -->
+    <div class="detail-card-section" id="detailStepsSection">
       <div class="detail-sec-header">
-        <span class="detail-sec-title">执行步骤清单 (一步步打勾完结)</span>
-        <span class="detail-sec-badge" id="detailStepsBadge">0/0 步</span>
+        <span class="detail-sec-title">阶段与执行步骤</span>
+        <div class="detail-sec-right">
+          <span class="detail-sec-badge" id="detailStepsBadge">0/0 步</span>
+          <button type="button" class="btn-text-sm" id="detailAddStageBtn">+ 新建阶段</button>
+        </div>
       </div>
       <div class="detail-progress-bar-wrap">
         <div class="detail-progress-bar" id="detailProgressBar"></div>
       </div>
       <div class="detail-subtasks-list" id="detailSubtasksList"></div>
-      <div class="detail-add-step-row">
-        <input type="text" id="detailNewStepInput" class="detail-new-step-input" placeholder="+ 添加下一步骤... (按回车添加)" autocomplete="off">
-        <button type="button" id="detailAddStepBtn" class="detail-add-step-btn">添加</button>
+      <div class="detail-add-step-box">
+        <div class="detail-add-step-meta">
+          <select id="detailStepStageSelect" class="step-meta-select" title="所属阶段">
+            <option value="">不分阶段</option>
+          </select>
+          <input type="date" id="detailStepDueInput" class="step-meta-date" title="单步截止日期">
+          <input type="number" id="detailStepDurInput" class="step-meta-dur" placeholder="分钟" min="1" step="5" title="预计耗时(分钟)">
+        </div>
+        <div class="detail-add-step-row">
+          <input type="text" id="detailNewStepInput" class="detail-new-step-input" placeholder="+ 添加执行步骤（支持输入【阶段名】步骤）..." autocomplete="off">
+          <button type="button" id="detailAddStepBtn" class="detail-add-step-btn">添加</button>
+        </div>
       </div>
     </div>
 
-    <!-- 详细说明与执行指南 (宽大舒适的展示与编辑区) -->
+    <!-- 详细说明与执行指南 -->
     <div class="detail-card-section" id="detailGuideSection">
       <div class="detail-sec-header">
         <span class="detail-sec-title">详细说明与执行指南</span>
         <button type="button" class="btn-text-sm" id="detailEditNoteBtn">✎ 编辑内容</button>
       </div>
-      <!-- 阅读模式 (大字号、宽敞行距、优雅富文本排版) -->
       <div class="detail-guide-read" id="detailGuideRead"></div>
-      <!-- 编辑模式 (宽敞的无压迫输入画布) -->
       <div class="detail-guide-edit" id="detailGuideEdit" hidden>
-        <textarea id="detailNoteTextarea" class="detail-note-textarea" placeholder="输入详细落地指南、备考建议或清单备注..." rows="8"></textarea>
+        <textarea id="detailNoteTextarea" class="detail-note-textarea" placeholder="输入详细落地指南、复盘心得或执行要点..." rows="8"></textarea>
         <div class="detail-guide-actions">
           <button type="button" class="btn-line-sm" id="detailCancelNoteBtn">取消</button>
           <button type="button" class="btn-filled-sm" id="detailSaveNoteBtn">保存指南</button>
         </div>
       </div>
     </div>
+
+    <div class="detail-footer-inline">
+      <span class="detail-create-time" id="detailCreateTime"></span>
+      <button type="button" class="btn-filled" id="detailDoneBtn">完成并返回</button>
+    </div>
   </div>
-  <div class="detail-footer">
-    <span class="detail-create-time" id="detailCreateTime"></span>
-    <button type="button" class="btn-filled" id="detailDoneBtn">完成</button>
+
+  <!-- Tab 2: 该事项专属独立会话 -->
+  <div class="detail-chat-pane" id="detailChatPane" hidden>
+    <div class="dcp-bar">
+      <div class="dcp-row-top">
+        <div class="dcp-info">
+          <span class="dcp-dot"></span>
+          <span class="dcp-label" id="dcpLabel">一对一独立会话记忆</span>
+        </div>
+        <div class="dcp-actions">
+          <button type="button" class="btn-text-sm" id="dcpPinBtn" title="置顶会话">📌</button>
+          <button type="button" class="btn-text-sm" id="dcpCompactBtn" title="压缩早期上下文">🗜️ 压缩</button>
+          <button type="button" class="btn-text-sm" id="dcpExportBtn" title="导出 Markdown">导出</button>
+          <button type="button" class="btn-text-sm" id="dcpOpenInDrawerBtn">会话中心</button>
+          <button type="button" class="btn-text-sm danger" id="dcpClearChatBtn">清空</button>
+        </div>
+      </div>
+      <div class="dcp-metrics-row" id="dcpMetricsRow">活跃上下文 0 条 · ~0 tok</div>
+    </div>
+    <div class="dcp-body" id="detailChatScroll">
+      <div class="chat-messages" id="detailChatMessages"></div>
+    </div>
+    <div class="chat-quick-tags" id="detailChatQuickTags"></div>
+    <div class="chat-footer">
+      <div class="chat-input-wrap">
+        <textarea id="detailChatInput" rows="1" placeholder="围绕此事项提问，或输入 /compact 压缩上下文..." autocomplete="off"></textarea>
+        <button type="button" class="chat-send-btn" id="detailChatSendBtn" aria-label="发送">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 项目空间新建 / 编辑弹窗 ===== -->
+<div class="modal-mask" id="projectMask" hidden></div>
+<div class="modal modal-sm" id="projectModal" hidden>
+  <div class="modal-head">
+    <h2 id="projectModalTitle">新建项目空间</h2>
+    <button class="md-close" id="projectClose" aria-label="关闭"></button>
+  </div>
+  <div class="modal-body">
+    <div class="fld">
+      <label class="fld-label">项目名称</label>
+      <input type="text" id="pName" placeholder="如：副业项目、考研冲刺、家装采购..." autocomplete="off">
+    </div>
+    <div class="fld">
+      <label class="fld-label">项目图标</label>
+      <div class="emoji-grid" id="pIconGrid"></div>
+    </div>
+    <div class="fld">
+      <label class="fld-label">标识颜色</label>
+      <div class="palette compact" id="pColorGrid"></div>
+    </div>
+    <div class="fld">
+      <label class="fld-label">专属结构化模板</label>
+      <select id="pTemplate" class="fld-select">
+        <option value="general">通用待办</option>
+        <option value="plan">计划与里程碑</option>
+        <option value="shopping">购物与预算</option>
+        <option value="travel">旅行与行程</option>
+        <option value="wish">心愿与储蓄</option>
+      </select>
+    </div>
+    <div class="fld">
+      <label class="fld-label">项目简介（可选）</label>
+      <input type="text" id="pDesc" placeholder="一句话说明这个项目空间包含什么..." autocomplete="off">
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn-text danger" id="projectDelete" hidden>删除项目</button>
+    <div class="spacer"></div>
+    <button class="btn-text" id="projectCancel">取消</button>
+    <button class="btn-filled" id="projectSave">保存</button>
   </div>
 </div>
 
 <!-- ===== 排序弹窗 ===== -->
 <div class="modal-mask" id="sortMask" hidden></div>
 <div class="modal modal-sm" id="sortModal" hidden>
-  <div class="modal-head"><h2>分组内排序</h2><button class="md-close" id="sortClose" aria-label="关闭"></button></div>
+  <div class="modal-head"><h2>列表排序</h2><button class="md-close" id="sortClose" aria-label="关闭"></button></div>
   <div class="modal-body">
     <div class="radio-list" id="sortOptions"></div>
     <label class="switch"><input type="checkbox" id="sortAsc" checked><span></span><em>升序</em></label>
-  </div>
-</div>
-
-<!-- ===== AI 一句话速记弹窗 ===== -->
-<div class="modal-mask" id="aiMask" hidden></div>
-<div class="modal modal-sm" id="aiModal" hidden>
-  <div class="modal-head"><h2>一句话速记</h2><button class="md-close" id="aiClose" aria-label="关闭"></button></div>
-  <div class="modal-body">
-    <label class="fld">
-      <input type="text" id="aiInput" placeholder="例如：买一把剪刀，30块，明天用" autocomplete="off">
-    </label>
-    <div class="ai-tip">AI 会自动归类并填好表单，保存前可修改。</div>
-    <div class="ai-loading" id="aiLoading" hidden>正在解析…</div>
-    <div class="ai-status" id="aiStatus"></div>
-  </div>
-  <div class="modal-foot">
-    <div class="spacer"></div>
-    <button class="btn-text" id="aiCancel">取消</button>
-    <button class="btn-filled" id="aiGo">解析</button>
-  </div>
-</div>
-
-<!-- ===== 智能整理弹窗 ===== -->
-<div class="modal-mask" id="tidyMask" hidden></div>
-<div class="modal" id="tidyModal" hidden>
-  <div class="modal-head"><h2>智能整理</h2><button class="md-close" id="tidyClose" aria-label="关闭"></button></div>
-  <div class="modal-body">
-    <div class="tidy-tip">为未分类事项建议补场景/时间标签，可逐条修改后一键采纳。</div>
-    <div class="ai-loading" id="tidyLoading" hidden>正在解析…</div>
-    <div class="tidy-list" id="tidyList"></div>
-  </div>
-  <div class="modal-foot">
-    <div class="spacer"></div>
-    <button class="btn-text" id="tidyCancel">关闭</button>
-    <button class="btn-filled" id="tidyApply">全部采纳</button>
   </div>
 </div>
 
@@ -285,52 +423,102 @@ try{const d=JSON.parse(localStorage.getItem('listapp.data.v2')),m=d&&d.colorMode
       <h3>外观 · 主色</h3>
       <p class="set-tip">选择主色调，界面配色会整体跟随。</p>
       <div class="palette" id="palette"></div>
-      <div class="pal-custom">
-        <button class="btn-line" id="customColorBtn">自定义颜色</button>
-        <input type="color" id="customColor" value="#0b57d0" hidden>
+    </div>
+
+    <div class="set-divide"></div>
+
+    <div class="set-section">
+      <h3>项目空间管理</h3>
+      <p class="set-tip">点击已有项目可编辑图标、颜色与专属模板。</p>
+      <div class="tags" id="setProjects"></div>
+    </div>
+
+    <div class="set-section">
+      <h3>标签管理</h3>
+      <p class="set-tip">点击标签可重命名或删除。</p>
+      <div class="tags" id="setTags"></div>
+    </div>
+
+    <div class="set-divide"></div>
+
+    <div class="set-section">
+      <h3>AI · 云端增强（适配 2026 DeepSeek V4）</h3>
+      <p class="set-tip">支持 DeepSeek Flash / V4-Pro（1M 上下文 + 自动磁盘缓存）及 OpenAI 兼容接口。Key 仅保存在本地设备。</p>
+      <label class="switch ai-switch"><input type="checkbox" id="aiEnabled"><span></span><em>启用 AI 增强</em></label>
+      <label class="fld">
+        <input type="text" id="aiBase" placeholder="Base URL，如 https://api.deepseek.com" data-aifield="base" autocomplete="off">
+      </label>
+      <label class="fld">
+        <input type="password" id="aiKey" placeholder="输入 DeepSeek API Key (sk-...)" data-aifield="key" autocomplete="off">
+      </label>
+      <label class="fld">
+        <input type="text" id="aiModel" placeholder="模型名，如 deepseek-flash 或 deepseek-v4-pro" data-aifield="model" autocomplete="off">
+      </label>
+      <div class="modal-grid-2 ai-v4-grid">
+        <div class="fld">
+          <label class="fld-label">思考模式 (Thinking)</label>
+          <select id="aiThinkingMode" class="fld-select">
+            <option value="disabled">关闭思考（极速省费）</option>
+            <option value="low">轻度思考 (low)</option>
+            <option value="high">深度思考 (high)</option>
+            <option value="max">极限思考 (max)</option>
+          </select>
+        </div>
+        <div class="fld">
+          <label class="fld-label">长对话自动压缩阈值</label>
+          <select id="aiCompactThreshold" class="fld-select">
+            <option value="24:16000">紧凑 (24条 / 16K tok)</option>
+            <option value="40:32000">均衡 (40条 / 32K tok · 推荐)</option>
+            <option value="80:64000">超长记忆 (80条 / 64K tok)</option>
+          </select>
+        </div>
+      </div>
+      <label class="switch ai-switch"><input type="checkbox" id="aiAutoCompact" checked><span></span><em>开启长会话非破坏性自动压缩</em></label>
+      <div class="ai-storage-summary" id="aiStorageSummary"></div>
+      <div class="ai-test-row">
+        <button type="button" class="btn-line" id="aiTestBtn">测试 DeepSeek / API 连接</button>
+        <span class="ai-test-status" id="aiTestStatus"></span>
       </div>
     </div>
 
     <div class="set-divide"></div>
 
     <div class="set-section">
-      <h3>类型</h3>
-      <p class="set-tip">长按汉堡菜单里的项目可重命名/删除。</p>
-      <div class="tags" id="setTypes"></div>
-    </div>
+      <h3>🔔 定时提醒与小米桌面小组件</h3>
+      <p class="set-tip">支持每日早报/晚间复盘准时推送、有具体时段的事项到点悬浮提醒，以及 4×2 桌面小组件实时联动。</p>
 
-    <div class="set-section">
-      <h3>场景分组</h3>
-      <div class="tags" id="setScenes"></div>
-    </div>
+      <div class="rem-row">
+        <label class="switch"><input type="checkbox" id="remMorningEnabled"><span></span><em>每日今日待办早报</em></label>
+        <input type="time" id="remMorningTime" class="rem-time-input" value="08:30">
+      </div>
+      <div class="rem-row">
+        <label class="switch"><input type="checkbox" id="remEveningEnabled"><span></span><em>每日晚间复盘预告</em></label>
+        <input type="time" id="remEveningTime" class="rem-time-input" value="21:00">
+      </div>
+      <label class="switch rem-switch"><input type="checkbox" id="remTaskExactEnabled"><span></span><em>开启已设具体时段的事项到点闹钟</em></label>
+      <label class="switch rem-switch"><input type="checkbox" id="remInAppBanner"><span></span><em>首页顶部显示醒目逾期/今日提醒条</em></label>
 
-    <div class="set-section">
-      <h3>时间分组</h3>
-      <div class="tags" id="setTimes"></div>
+      <div class="rem-test-box">
+        <button type="button" class="btn-line" id="remTestBtn">🔔 立即发送测试提醒</button>
+        <div class="rem-status-tip" id="remStatusTip"></div>
+      </div>
+
+      <div class="xiaomi-guide-box">
+        <div class="xg-title">📱 小米 HyperOS / MIUI 防漏提醒一键设置</div>
+        <p class="xg-desc">建议开启以下 4 项权限以确保锁屏或后台都能准时弹窗；添加桌面小组件请长按小米桌面 → 添加小部件 → 安卓小部件 → 选择「超级清单」。</p>
+        <div class="xiaomi-perm-grid">
+          <button type="button" class="btn-chip" data-mi-perm="notification">通知与悬浮</button>
+          <button type="button" class="btn-chip" data-mi-perm="alarm">精准闹钟</button>
+          <button type="button" class="btn-chip" data-mi-perm="battery">省电无限制</button>
+          <button type="button" class="btn-chip" data-mi-perm="autostart">自启动管理</button>
+        </div>
+      </div>
     </div>
 
     <div class="set-divide"></div>
 
     <div class="set-section">
-      <h3>AI · 云端增强</h3>
-      <p class="set-tip">开启后可启用「一句话速记」与「智能整理」，解析需联网调用 AI 服务。</p>
-      <label class="switch ai-switch"><input type="checkbox" id="aiEnabled"><span></span><em>启用 AI 增强</em></label>
-      <label class="fld">
-        <input type="text" id="aiBase" placeholder="Base URL，如 https://api.deepseek.com/v1" data-aifield="base" autocomplete="off">
-      </label>
-      <label class="fld">
-        <input type="password" id="aiKey" placeholder="API Key" data-aifield="key" autocomplete="off">
-      </label>
-      <label class="fld">
-        <input type="text" id="aiModel" placeholder="模型名，如 deepseek-chat" data-aifield="model" autocomplete="off">
-      </label>
-    </div>
-
-    <div class="set-divide"></div>
-
-    <div class="set-section">
-      <h3>数据</h3>
-      <button class="btn-line" id="tidyBtn">智能整理</button>
+      <h3>数据备份</h3>
       <div class="set-btns">
         <button class="btn-line" id="exportBtn">导出备份</button>
         <button class="btn-line" id="importBtn">导入备份</button>
@@ -352,17 +540,18 @@ try{const d=JSON.parse(localStorage.getItem('listapp.data.v2')),m=d&&d.colorMode
         <img class="info-logo-dark" src="app-icon-dark.png" alt="">
       </div>
       <div class="info-name">超级清单</div>
-      <div class="info-ver" id="infoVer">SuperTodo · 版本 1.7.9</div>
+      <div class="info-ver" id="infoVer">SuperTodo · 版本 1.8.0</div>
     </div>
     <div class="info-meta">
-      <div class="info-row"><span class="info-k">作者</span><span class="info-v">派大星TuT</span></div>
+      <div class="info-row"><span class="info-k">原作者</span><span class="info-v">派大星TuT</span></div>
+      <div class="info-row"><span class="info-k">基于开源</span><span class="info-v">PaidaxingTuT/SuperTodo (MIT)</span></div>
       <div class="info-row info-click" id="infoUpdateRow"><span class="info-k">检查更新</span><span class="info-v" id="infoUpdate">点击检查</span></div>
     </div>
     <button class="info-repo" id="infoRepo" type="button"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>开源仓库</button>
   </div>
 </div>
 
-<!-- ===== 通用对话框（替代原生 alert/confirm/prompt） ===== -->
+<!-- ===== 通用对话框 ===== -->
 <div class="modal-mask" id="dlgMask" hidden></div>
 <div class="modal modal-sm" id="dlgModal" hidden>
   <div class="modal-body dlg-body">
@@ -385,15 +574,15 @@ try{const d=JSON.parse(localStorage.getItem('listapp.data.v2')),m=d&&d.colorMode
 <div class="modal modal-sm" id="ctxModal" hidden>
   <div class="modal-head"><h2 id="ctxTitle">操作</h2><button class="md-close" id="ctxClose" aria-label="关闭"></button></div>
   <div class="modal-body">
-    <button class="ctx-row" id="ctxRename">✎ 重命名</button>
+    <button class="ctx-row" id="ctxRename">✎ 编辑</button>
     <button class="ctx-row" id="ctxDelete">🗑 删除</button>
   </div>
 </div>
 
-<!-- ===== 右下角浮动按钮（速记在上，新增在下） ===== -->
+<!-- ===== 右下角浮动按钮（多会话中心在上，新建事项在下） ===== -->
 <div class="fab-stack">
-  <button class="fab fab-ai" id="fabAi" aria-label="AI速记"></button>
-  <button class="fab" id="fab" aria-label="添加"></button>
+  <button class="fab fab-ai" id="fabAi" aria-label="AI多会话规划中心" title="AI 多会话规划中心"></button>
+  <button class="fab" id="fab" aria-label="新建事项" title="新建事项"></button>
 </div>
 
 <script src="Sortable.min.js"></script>
